@@ -21,7 +21,7 @@ class MarcTVTGDBImporter
     public function __construct()
     {
         $this->post_defaults = array(
-            'post_status' => 'draft',
+            'post_status' => 'publish',
             'post_type' => 'game',
             'post_author' => 1,
             'ping_status' => get_option('default_ping_status'),
@@ -50,19 +50,8 @@ class MarcTVTGDBImporter
         add_submenu_page('tools.php', 'TGDB Import', 'TGDB Import', 'manage_options', $this->pluginPrefix, array($this, 'tgdb_import_options'));
     }
 
-    public function tgdb_import_options()
-    {
-        if (!current_user_can('manage_options')) {
-            wp_die(__('You do not have sufficient permissions to access this page.'));
-        }
-        echo '<div class="wrap">';
-        if (isset ($_POST['startimport'])) {
-            $this->exampleGetGame("Bioshock");
-        }
-        echo '<form method="post" action="tools.php?page=marctv-tgdb-importer">';
-        submit_button("Import", 'primary', 'startimport');
-        echo '</form>';
-        echo '</div>';
+    public function tgdb_import_options() {
+        require_once('pages/settings.php');
     }
 
 
@@ -90,27 +79,26 @@ class MarcTVTGDBImporter
         $gameAPI = new gameDB();
         $game = $gameAPI->getGame($id);
 
-
+        /* check if post/game id exists */
         if ($this->post_exists($game->Game->id)) {
-            echo '<p>ID ' . $game->Game->id . ' with the title <a href="/wp-admin/post.php?post=' . $game->Game->id . '&action=edit">' . get_the_title($game->Game->id) . '</a> already exists! </p>';
+            return '<p>ID ' . $game->Game->id . ' with the title <a href="/wp-admin/post.php?post=' . $game->Game->id . '&action=edit">' . get_the_title($game->Game->id) . '</a> already exists! </p>';
             error_log('ID ' . $game->Game->id . ' already exists!');
 
             return false;
         }
 
+        /* check if game already exists */
         if( $double_title = $this->post_exists_by_title(($game->Game->GameTitle) )) {
             echo 'Title ' . $game->Game->GameTitle . ' already exists! Adding platform.</p>';
             error_log('Title ' . $game->Game->GameTitle . ' already exists! Adding platform.');
+            /* if this is the case add the platforms */
             $this->addTerms($double_title, $game->Game->Platform, 'platform');
 
             return false;
         }
 
-
         if (isset($game->Game->Overview)) {
             $overview = $game->Game->Overview;
-        } else {
-            return false;
         }
 
         if (isset ($game->Game->GameTitle)) {
@@ -169,7 +157,7 @@ class MarcTVTGDBImporter
         }
     }
 
-    public function exampleGetGame($name)
+    public function searchGamesByName($name)
     {
         $gameAPI = new gameDB();
         $games = $gameAPI->getGamesList($name);
@@ -178,7 +166,6 @@ class MarcTVTGDBImporter
 
             foreach ($games->Game as $game) {
                 $id = $game->id;
-                $game = $gameAPI->getGame($id);
                 $this->createGame($id);
                 $markup .= '<li><a href="#">' . $game->Game->GameTitle . '</a></li>';
             }
@@ -189,43 +176,8 @@ class MarcTVTGDBImporter
 
             $game = $games->Game;
             $id = $game->id;
-            $game = $gameAPI->getGame($id);
-            $title = $game->Game->GameTitle;
-            //print_r($title);
-            $markup = '<li><a href="#">' . $game->Game->GameTitle . '</a></li>';
+            $this->createGame($id);
 
-        }
-
-        $markup .= '</ol>';
-
-        return $markup;
-    }
-
-    public function exampleGetSingleGame($name)
-    {
-        $gameAPI = new gameDB();
-        $games = $gameAPI->getGamesList($name);
-        $markup = '<ol>';
-        if (count($games->Game) > 1) {
-
-            foreach ($games->Game as $game) {
-                $id = $game->id;
-                $game = $gameAPI->getGame($id);
-                //var_dump($game);
-
-                $markup .= '<li><a href="#">' . $game->Game->GameTitle . '</a></li>';
-                //print_r($title);
-            }
-
-
-        } else {
-            //GET SINGLE GAME FROM LISTING
-
-            $game = $games->Game;
-            $id = $game->id;
-            $game = $gameAPI->getGame($id);
-            $title = $game->Game->GameTitle;
-            //print_r($title);
             $markup = '<li><a href="#">' . $game->Game->GameTitle . '</a></li>';
 
         }
