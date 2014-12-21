@@ -21,9 +21,11 @@ Imports games from TheGameDatabase API as "game" post types.
 
 = 0.2 =
 
-todo:
-* add platforms to posts.
-* add genres to posts
+* add platforms to posts as terms.
+* add genres to posts as terms.
+* import class of game-api.
+* function to check if title exists and then adding platform.
+* better validation.
 
 = 0.1 =
 

@@ -4,54 +4,84 @@
 Plugin Name: MarcTV The GameDatabase Importer
 Plugin URI: http://marctv.de/blog/marctv-wordpress-plugins/
 Description:
-Version:  0.1
+Version:  0.2
 Author:  Marc Tönsing
 Author URI: marctv.de
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 */
 
+require_once('classes/game-api.php');
+
 class MarcTVTGDBImporter
 {
-
-    private $version = '0.1';
+    private $version = '0.2';
     private $pluginPrefix = 'marctv-tgdb-importer';
-    private $taxonomy_mapping = array();
+    private $post_defaults = '';
 
     public function __construct()
     {
+        $this->post_defaults = array(
+            'post_status' => 'draft',
+            'post_type' => 'game',
+            'post_author' => 1,
+            'ping_status' => get_option('default_ping_status'),
+            'post_parent' => 0,
+            'menu_order' => 0,
+            'to_ping' => '',
+            'pinged' => '',
+            'post_password' => '',
+            'guid' => '',
+            'post_content_filtered' => '',
+            'post_excerpt' => ''
+        );
+
         $this->initBackend();
+
     }
 
 
-    public function initBackend() {
-        add_action( 'admin_menu', array($this,'tgdb_import_menu'));
+    public function initBackend()
+    {
+        add_action('admin_menu', array($this, 'tgdb_import_menu'));
     }
 
-
-    /** Step 1. */
-    public function tgdb_import_menu() {
-        add_submenu_page('tools.php', 'TGDB Import', 'TGDB Import', 'manage_options', $this->pluginPrefix, array($this,'tgdb_import_options') );
+    public function tgdb_import_menu()
+    {
+        add_submenu_page('tools.php', 'TGDB Import', 'TGDB Import', 'manage_options', $this->pluginPrefix, array($this, 'tgdb_import_options'));
     }
 
-    /** Step 3. */
-    public function tgdb_import_options() {
-        if ( !current_user_can( 'manage_options' ) )  {
-            wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
+    public function tgdb_import_options()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have sufficient permissions to access this page.'));
         }
         echo '<div class="wrap">';
-        if( isset ($_POST['startimport'])) {
-            $game = $this->exampleGetGame("Halo 3: ODST");
+        if (isset ($_POST['startimport'])) {
+            $this->exampleGetGame("Bioshock");
         }
         echo '<form method="post" action="tools.php?page=marctv-tgdb-importer">';
-         submit_button("Import",'primary','startimport');
+        submit_button("Import", 'primary', 'startimport');
         echo '</form>';
         echo '</div>';
     }
 
 
-    private function acme_post_exists($id)
+    private function post_exists($id)
     {
         return is_string(get_post_status($id));
+    }
+
+    private function post_exists_by_title($title_str)
+    {
+        global $wpdb;
+        $sql_obj = $wpdb->get_row("SELECT * FROM wp_posts WHERE post_title = '" . mysql_real_escape_string( $title_str ) . "'", 'ARRAY_A');
+
+        $id = $sql_obj['ID'];
+        if(isset ($id)) {
+            return $id;
+        } else {
+            return false;
+        }
     }
 
     public function createGame($id)
@@ -60,89 +90,83 @@ class MarcTVTGDBImporter
         $gameAPI = new gameDB();
         $game = $gameAPI->getGame($id);
 
-            if ($this->acme_post_exists($game->Game->id )) {
-                echo '<p>ID ' . $game->Game->id . ' with the title <a href="/wp-admin/post.php?post='. $game->Game->id .'&action=edit">' . get_the_title( $game->Game->id ) . '</a> already exists! </p>';
-                error_log('ID ' . $game->Game->id . ' already exists!');
-                return false;
-            }
 
-            if (!isset($game->Game)) {
-                return false;
-            }
+        if ($this->post_exists($game->Game->id)) {
+            echo '<p>ID ' . $game->Game->id . ' with the title <a href="/wp-admin/post.php?post=' . $game->Game->id . '&action=edit">' . get_the_title($game->Game->id) . '</a> already exists! </p>';
+            error_log('ID ' . $game->Game->id . ' already exists!');
 
-            if (isset($game->Game->Overview)) {
-                $overview = $game->Game->Overview;
-            } else {
-                return false;
-            }
+            return false;
+        }
 
-            if (isset ($game->Game->GameTitle)) {
-                $gametitle = $game->Game->GameTitle;
-            } else {
-                return false;
-            }
+        if( $double_title = $this->post_exists_by_title(($game->Game->GameTitle) )) {
+            echo 'Title ' . $game->Game->GameTitle . ' already exists! Adding platform.</p>';
+            error_log('Title ' . $game->Game->GameTitle . ' already exists! Adding platform.');
+            $this->addTerms($double_title, $game->Game->Platform, 'platform');
 
-            if (isset ($game->Game->ReleaseDate)) {
-                $releasedate = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate));
-            }
+            return false;
+        }
 
-            if (isset($game->Game->Genres)) {
 
-                if (count($game->Game->Genres->genre) > 1) {
-                    foreach ($game->Game->Genres->genre as $genre) {
+        if (isset($game->Game->Overview)) {
+            $overview = $game->Game->Overview;
+        } else {
+            return false;
+        }
 
-                        if( ! term_exists($genre, 'genre') ) {
+        if (isset ($game->Game->GameTitle)) {
+            $game_title = $game->Game->GameTitle;
+        } else {
+            return false;
+        }
 
-                            wp_insert_term($genre, 'genre', $args = array());
-                        }
-                    }
-                } else {
+        if (isset ($game->Game->ReleaseDate)) {
+            $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate));
+        }
 
-                    $genre = $game->Game->Genres->genre;
-                    if( ! term_exists($genre, 'genre') ) {
+        $post_attributes = array_merge($this->post_defaults, array(
+            'post_content' => $overview,
+            'post_title' => $game_title,
+            'post_date' => $release_date, //[ Y-m-d H:i:s ]
+            'import_id' => $game->Game->id
+        ));
 
-                        wp_insert_term($genre, 'genre', $args = array());
-                    }
+        // Insert the post into the database
+        if ($wp_id = wp_insert_post($post_attributes)) {
+            echo '<p>Successfully created <a href="/wp-admin/post.php?post=' . $wp_id . '&action=edit">' . $game_title . '</a></p>';
+
+            $this->addCustomField($wp_id, 'Developer', $game->Game->Developer);
+
+            $this->addCustomField($wp_id, 'Publisher', $game->Game->Publisher);
+
+            $this->addTerms($wp_id, $game->Game->Genres->genre, 'genre');
+
+            $this->addTerms($wp_id, $game->Game->Platform, 'platform');
+
+        }
+
+    }
+
+
+    public function addCustomField($wp_id, $label, $value = '')
+    {
+        if (isset ($value)) {
+            add_post_meta($wp_id, $label, $value, true) || update_post_meta($wp_id, $label, $value);
+        }
+    }
+
+    public function addTerms($wp_id, $term_obj, $taxonomy_string)
+    {
+
+        if (isset($term_obj)) {
+            if (count($term_obj) > 1) {
+                foreach ($term_obj as $obj_string) {
+                    wp_set_object_terms($wp_id, $obj_string, $taxonomy_string, true);
                 }
+            } else {
+                $obj_string = $term_obj;
+                wp_set_object_terms($wp_id, $obj_string, $taxonomy_string, true);
             }
-
-            $new_game = array(
-                'post_status' => 'draft',
-                'post_content' => $overview,
-                'post_title' => $gametitle,
-                'post_type' => 'game',
-                'post_author' => 1,
-                'post_date'      => $releasedate, //[ Y-m-d H:i:s ]
-                'ping_status' => get_option('default_ping_status'),
-                'post_parent' => 0,
-                'menu_order' => 0,
-                'to_ping' => '',
-                'pinged' => '',
-                'post_password' => '',
-                'guid' => '',
-                'post_content_filtered' => '',
-                'post_excerpt' => '',
-                //'post_category' => array(8,39),
-                'import_id' => $game->Game->id
-            );
-
-
-            // Insert the post into the database
-            if( $wp_id = wp_insert_post( $new_game ) ) {
-                echo '<p>Successfully created <a href="/wp-admin/post.php?post='.$wp_id.'&action=edit">' . $gametitle . '</a></p>';
-            }
-
-
-        if (isset ($game->Game->Developer)) {
-            add_post_meta($wp_id, 'Developer', $game->Game->Developer, true) || update_post_meta($wp_id, 'Developer', $game->Game->Developer);
         }
-        if (isset ($game->Game->Publisher)) {
-
-            add_post_meta($wp_id, 'Publisher', $game->Game->Publisher, true) || update_post_meta($wp_id, 'Publisher', $game->Game->Publisher);
-        }
-
-            //wp_redirect( get_permalink( $wp_id ));
-
     }
 
     public function exampleGetGame($name)
@@ -155,7 +179,6 @@ class MarcTVTGDBImporter
             foreach ($games->Game as $game) {
                 $id = $game->id;
                 $game = $gameAPI->getGame($id);
-                //var_dump($game);
                 $this->createGame($id);
                 $markup .= '<li><a href="#">' . $game->Game->GameTitle . '</a></li>';
             }
