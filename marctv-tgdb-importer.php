@@ -88,14 +88,14 @@ class MarcTVTGDBImporter
         if(isset($game->Game->id)) {
             $game_id = $game->Game->id;
         } else {
-            error_log('error: no ID');
+            error_log('ID ' . $game_id . ': error: no ID');
             return false;
         }
 
         if (isset ($game->Game->GameTitle)) {
             $game_title = $game->Game->GameTitle;
         } else {
-            error_log('error in game title');
+            error_log('ID ' . $game_id . ': error in game title');
             return false;
         }
 
@@ -132,7 +132,7 @@ class MarcTVTGDBImporter
         if (isset ($game->Game->ReleaseDate)) {
             $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate) + 43200); // release date plus 12 hours.
         } else {
-            error_log('error in releasedate');
+            error_log('ID ' . $game_id . ': error in releasedate');
             return false;
         }
 
@@ -311,14 +311,14 @@ class MarcTVTGDBImporter
 
     public function import($name, $limit = 0){
         //$games = $this->searchGamesByName($name, $limit);
-        //$games = $this->getGamesByPlatform($name);
-        var_dump($this->createGame(24451));
+        $games = $this->getGamesByPlatform($name); // 4919 / 15
+        //var_dump($this->createGame(24451));
         /*
         echo "<pre>";
         var_dump($games);
         echo "</pre>";
         */
-        /*
+
         if (count($games->Game) > 0) {
 
             $i = 0;
@@ -331,8 +331,8 @@ class MarcTVTGDBImporter
                 if (++$i == $limit) break;
             }
         }
-        //4919 / 15
-        */
+
+
     }
 
 }
