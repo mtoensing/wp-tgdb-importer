@@ -73,6 +73,13 @@ class gameDB{
         return gameDB::convertXMLArray($body);
     }
 
+    public function getPlatformGames($id){
+        $call = wp_remote_get($this->apiUrl . 'GetPlatformGames.php?platform=' . $id);
+        $body = wp_remote_retrieve_body($call);
+
+        return gameDB::convertXMLArray($body);
+    }
+
     /**
      * Get specific game from the ID
      * @param  int $id id that contains the game specific ID

@@ -76,9 +76,18 @@ class MarcTVTGDBImporter
 
     public function createGame($id)
     {
-
         $gameAPI = new gameDB();
         $game = $gameAPI->getGame($id);
+
+        /*
+        echo "<pre>";
+        var_dump($game->Game);
+        echo "</pre>";
+        */
+
+        if(!isset($game->Game->id)) {
+           return false;
+        }
 
         /* check if post/game id exists */
         if ($this->post_exists($game->Game->id)) {
@@ -100,6 +109,8 @@ class MarcTVTGDBImporter
 
         if (isset($game->Game->Overview)) {
             $overview = $game->Game->Overview;
+        } else {
+            $overview = '';
         }
 
         if (isset ($game->Game->GameTitle)) {
@@ -110,6 +121,8 @@ class MarcTVTGDBImporter
 
         if (isset ($game->Game->ReleaseDate)) {
             $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate) + 43200); // release date plus 12 hours.
+        } else {
+            return false;
         }
 
         $post_attributes = array_merge($this->post_defaults, array(
@@ -122,7 +135,6 @@ class MarcTVTGDBImporter
         // Insert the post into the database
         if ($wp_id = wp_insert_post($post_attributes)) {
             echo '<p>Successfully created <a href="/wp-admin/post.php?post=' . $wp_id . '&action=edit">' . $game_title . '</a></p>';
-
 
             if(isset($game->Game->Developer)) {
                 $this->addCustomField($wp_id, 'Developer', $game->Game->Developer);
@@ -140,21 +152,27 @@ class MarcTVTGDBImporter
                 $this->addCustomField($wp_id, 'Youtube', $game->Game->Youtube);
             }
 
-            $this->addTerms($wp_id, $game->Game->Genres->genre, 'genre');
-
-            $this->addTerms($wp_id, $game->Game->Platform, 'platform');
-
-            $image_urls = $this->getTreeLeaves($game->Game->Images);
-
-            foreach($image_urls as $image_url){
-                $url = $game->baseImgUrl.$image_url;
-                $path = explode('/',$image_url);
-                $title = $game_title . ' - ' . $path[0];
-                /* set upload directory to the date as the release date */
-                $time = date("Y/m", strtotime($release_date));
-
-                $this->saveImage($wp_id, $url, $title, $this->include_images, $time);
+            if(isset($game->Game->Genres->genre)) {
+                $this->addTerms($wp_id, $game->Game->Genres->genre, 'genre');
             }
+
+            if(isset($game->Game->Platform)) {
+                $this->addTerms($wp_id, $game->Game->Platform, 'platform');
+            }
+
+            if(isset($game->Game->Images)) {
+                $image_urls = $this->getTreeLeaves($game->Game->Images);
+                foreach($image_urls as $image_url){
+                    $url = $game->baseImgUrl.$image_url;
+                    $path = explode('/',$image_url);
+                    $title = $game_title . ' - ' . $path[0];
+                    /* set upload directory to the date as the release date */
+                    $time = date("Y/m", strtotime($release_date));
+
+                    $this->saveImage($wp_id, $url, $title, $this->include_images, $time);
+                }
+            }
+
         }
     }
 
@@ -255,10 +273,25 @@ class MarcTVTGDBImporter
         }
     }
 
-    public function searchGamesByName($name, $limit = 0)
+    public function searchGamesByName($name)
     {
         $gameAPI = new gameDB();
         $games = $gameAPI->getGamesList($name);
+
+        return $games;
+
+    }
+
+    public function getGamesByPlatform($id) {
+        $gameAPI = new gameDB();
+        $games = $gameAPI->getPlatformGames($id);
+
+        return $games;
+    }
+
+    public function import($name, $limit = 10){
+        //$games = $this->searchGamesByName($name, $limit);
+        $games = $this->getGamesByPlatform($name);
 
         if (count($games->Game) > 0) {
 
@@ -269,12 +302,8 @@ class MarcTVTGDBImporter
                 $this->createGame($id);
                 if (++$i == $limit) break;
             }
-
         }
-    }
-
-    public function import($name, $limit = 0){
-        $this->searchGamesByName($name, $limit);
+        //4919 / 15
     }
 
 }
