@@ -15,6 +15,7 @@ require_once('classes/game-api.php');
 class MarcTVTGDBImporter
 {
     private $version = '0.2';
+    private $include_images = 'front';
     private $pluginPrefix = 'marctv-tgdb-importer';
     private $post_defaults = '';
 
@@ -36,7 +37,6 @@ class MarcTVTGDBImporter
         );
 
         $this->initBackend();
-
     }
 
 
@@ -64,7 +64,7 @@ class MarcTVTGDBImporter
     private function post_exists_by_title($title_str)
     {
         global $wpdb;
-        $sql_obj = $wpdb->get_row("SELECT * FROM wp_posts WHERE post_title = '" . mysql_real_escape_string($title_str) . "'", 'ARRAY_A');
+        $sql_obj = $wpdb->get_row("SELECT * FROM wp_posts WHERE post_title = '" . esc_sql($title_str) . "'", 'ARRAY_A');
 
         $id = $sql_obj['ID'];
         if (isset ($id)) {
@@ -80,11 +80,10 @@ class MarcTVTGDBImporter
         $gameAPI = new gameDB();
         $game = $gameAPI->getGame($id);
 
-
         /* check if post/game id exists */
         if ($this->post_exists($game->Game->id)) {
             return '<p>ID ' . $game->Game->id . ' with the title <a href="/wp-admin/post.php?post=' . $game->Game->id . '&action=edit">' . get_the_title($game->Game->id) . '</a> already exists! </p>';
-            error_log('ID ' . $game->Game->id . ' already exists!');
+            //error_log('ID ' . $game->Game->id . ' already exists!');
 
             return false;
         }
@@ -92,7 +91,7 @@ class MarcTVTGDBImporter
         /* check if game already exists */
         if ($double_title = $this->post_exists_by_title(($game->Game->GameTitle))) {
             echo 'Title ' . $game->Game->GameTitle . ' already exists! Adding platform.</p>';
-            error_log('Title ' . $game->Game->GameTitle . ' already exists! Adding platform.');
+            //error_log('Title ' . $game->Game->GameTitle . ' already exists! Adding platform.');
             /* if this is the case add the platforms */
             $this->addTerms($double_title, $game->Game->Platform, 'platform');
 
@@ -124,52 +123,108 @@ class MarcTVTGDBImporter
         if ($wp_id = wp_insert_post($post_attributes)) {
             echo '<p>Successfully created <a href="/wp-admin/post.php?post=' . $wp_id . '&action=edit">' . $game_title . '</a></p>';
 
-            $this->addCustomField($wp_id, 'Developer', $game->Game->Developer);
 
-            $this->addCustomField($wp_id, 'Publisher', $game->Game->Publisher);
+            if(isset($game->Game->Developer)) {
+                $this->addCustomField($wp_id, 'Developer', $game->Game->Developer);
+            }
 
-            $this->addCustomField($wp_id, 'ESRB', $game->Game->ESRB);
+            if(isset($game->Game->Publisher)) {
+                $this->addCustomField($wp_id, 'Publisher', $game->Game->Publisher);
+            }
 
-            $this->addCustomField($wp_id, 'Youtube', $game->Game->Youtube);
+            if(isset($game->Game->ESRB)) {
+                $this->addCustomField($wp_id, 'ESRB', $game->Game->ESRB);
+            }
+
+            if(isset($game->Game->Youtube)) {
+                $this->addCustomField($wp_id, 'Youtube', $game->Game->Youtube);
+            }
 
             $this->addTerms($wp_id, $game->Game->Genres->genre, 'genre');
 
             $this->addTerms($wp_id, $game->Game->Platform, 'platform');
 
+            $image_urls = $this->getTreeLeaves($game->Game->Images);
 
-            if (isset ($game->Game->Images)) {
-                foreach ($game->Game->Images as $image_slug) {
-                    if (isset($image_slug->original)) {
-                        $this->saveImage($wp_id, $game->baseImgUrl, $image_slug->original);
-                    }
-                }
+            foreach($image_urls as $image_url){
+                $url = $game->baseImgUrl.$image_url;
+                $path = explode('/',$image_url);
+                $title = $game_title . ' - ' . $path[0];
+                /* set upload directory to the date as the release date */
+                $time = date("Y/m", strtotime($release_date));
+
+                $this->saveImage($wp_id, $url, $title, $this->include_images, $time);
             }
         }
+    }
 
+    public function getTreeLeaves($object)
+    {
+        $return = array();
+        $iterator = new RecursiveArrayIterator($object);
+
+        while ($iterator->valid()) {
+
+            if ($iterator->hasChildren()) {
+                $return = array_merge($this->getTreeLeaves($iterator->getChildren()),$return);
+            } else {
+                $return[] = $iterator->current();
+            }
+
+            $iterator->next();
+        }
+        return $return;
+    }
+
+    public function strposa($haystack, $needles=array(), $offset=0) {
+        $chr = array();
+        foreach($needles as $needle) {
+            $res = strpos($haystack, $needle, $offset);
+            if ($res !== false) $chr[$needle] = $res;
+        }
+        if(empty($chr)) return false;
+        return min($chr);
     }
 
 
-    public function saveImage($wp_id, $image_base, $image_slug)
+    public function saveImage($wp_id, $url, $title = '', $include_csv = '', $time = null)
     {
-        $parent_post_id = $wp_id;
-        $file = $image_base . $image_slug;
-        $filename = basename($file);
+        if(!empty($include_csv)) {
+            $include_array = explode(',', $include_csv);
 
-        $upload_file = wp_upload_bits($filename, null, file_get_contents($file));
+            if(!$this->strposa($url,$include_array)){
+                return false;
+            }
+        }
+
+        $parent_post_id = $wp_id;
+        $file = $url;
+        $wp_filetype = wp_check_filetype(basename($file), null);
+        $filename = strtolower(sanitize_file_name($title)) . '.' . $wp_filetype['ext'];
+
+        if(!isset($title)) {
+            $title = preg_replace('/\.[^.]+$/', '', $filename);
+            $filename = basename($file);
+        }
+
+        $upload_file = wp_upload_bits($filename, null, file_get_contents($file), $time);
+
         if (!$upload_file['error']) {
-            $wp_filetype = wp_check_filetype($filename, null);
+
             $attachment = array(
                 'post_mime_type' => $wp_filetype['type'],
                 'post_parent' => $parent_post_id,
-                'post_title' => preg_replace('/\.[^.]+$/', '', $filename),
+                'post_title' => $title,
                 'post_content' => '',
-                'post_status' => 'inherit'
+                'post_status' => 'inherit',
+                'import_id' => $parent_post_id + 5000000 //all attachment posts start with this. Any better idea to avoid collisions?
             );
             $attachment_id = wp_insert_attachment($attachment, $upload_file['file'], $parent_post_id);
             if (!is_wp_error($attachment_id)) {
                 require_once(ABSPATH . "wp-admin" . '/includes/image.php');
                 $attachment_data = wp_generate_attachment_metadata($attachment_id, $upload_file['file']);
                 wp_update_attachment_metadata($attachment_id, $attachment_data);
+                set_post_thumbnail( $parent_post_id, $attachment_id );
             }
         } else {
             return false;
@@ -200,34 +255,26 @@ class MarcTVTGDBImporter
         }
     }
 
-    public function searchGamesByName($name)
+    public function searchGamesByName($name, $limit = 0)
     {
         $gameAPI = new gameDB();
         $games = $gameAPI->getGamesList($name);
-        $markup = '<ol>';
-        if (count($games->Game) > 1) {
+
+        if (count($games->Game) > 0) {
+
+            $i = 0;
 
             foreach ($games->Game as $game) {
                 $id = $game->id;
                 $this->createGame($id);
-                $markup .= '<li><a href="#">' . $game->Game->GameTitle . '</a></li>';
+                if (++$i == $limit) break;
             }
 
-
-        } else {
-            //GET SINGLE GAME FROM LISTING
-
-            $game = $games->Game;
-            $id = $game->id;
-            $this->createGame($id);
-
-            $markup = '<li><a href="#">' . $game->Game->GameTitle . '</a></li>';
-
         }
+    }
 
-        $markup .= '</ol>';
-
-        return $markup;
+    public function import($name, $limit = 0){
+        $this->searchGamesByName($name, $limit);
     }
 
 }

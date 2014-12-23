@@ -17,7 +17,7 @@ if (!current_user_can('manage_options')) {
 
             $search_term = $_POST[$this->pluginPrefix . '-searchterm'];
 
-            $this->searchGamesByName($search_term);
+            $this->import($search_term);
         } ?>
 
         <table class="form-table">
