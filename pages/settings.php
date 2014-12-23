@@ -24,13 +24,13 @@ if (!current_user_can('manage_options')) {
             <tbody>
             <tr valign="top">
                 <th scope="row"><label
-                        for="<?php echo $this->pluginPrefix; ?>-searchterm">Search terms for import </label></th>
+                        for="<?php echo $this->pluginPrefix; ?>-searchterm">Platform ID for import </label></th>
                 <td><input name="<?php echo $this->pluginPrefix; ?>-searchterm" type="text"
                            id="<?php echo $this->pluginPrefix; ?>-searchterm"
                            value=""
                            class="regular-text">
 
-                    <p class="description">Search for games and import</p>
+                    <p class="description">The Platform ID</p>
                 </td>
             </tr>
 

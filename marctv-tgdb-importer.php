@@ -193,6 +193,7 @@ class MarcTVTGDBImporter
                 }
             }
 
+            return true;
         }
     }
 
