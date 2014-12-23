@@ -85,24 +85,38 @@ class MarcTVTGDBImporter
         echo "</pre>";
         */
 
-        if(!isset($game->Game->id)) {
-           return false;
+        if(isset($game->Game->id)) {
+            $game_id = $game->Game->id;
+        } else {
+            error_log('error: no ID');
+            return false;
+        }
+
+        if (isset ($game->Game->GameTitle)) {
+            $game_title = $game->Game->GameTitle;
+        } else {
+            error_log('error in game title');
+            return false;
+        }
+
+        if(isset($game->Game->Platform)) {
+            $game_platform = $game->Game->Platform;
         }
 
         /* check if post/game id exists */
-        if ($this->post_exists($game->Game->id)) {
-            return '<p>ID ' . $game->Game->id . ' with the title <a href="/wp-admin/post.php?post=' . $game->Game->id . '&action=edit">' . get_the_title($game->Game->id) . '</a> already exists! </p>';
-            //error_log('ID ' . $game->Game->id . ' already exists!');
+        if ($this->post_exists($game_id)) {
+            return '<p>ID ' . $game_id . ' with the title <a href="/wp-admin/post.php?post=' . $game_id . '&action=edit">' . get_the_title($game_id) . '</a> already exists! </p>';
+            error_log('ID ' . $game_id . ' already exists!');
 
             return false;
         }
 
         /* check if game already exists */
-        if ($double_title = $this->post_exists_by_title(($game->Game->GameTitle))) {
-            echo 'Title ' . $game->Game->GameTitle . ' already exists! Adding platform.</p>';
-            //error_log('Title ' . $game->Game->GameTitle . ' already exists! Adding platform.');
-            /* if this is the case add the platforms */
-            $this->addTerms($double_title, $game->Game->Platform, 'platform');
+        if ($double_title = $this->post_exists_by_title(($game_title))) {
+            echo 'Title ' . $game_title . ' already exists! Adding platform.</p>';
+            error_log('Title ' . $game_title . ' already exists! Adding platform.');
+            /* add the platforms */
+            $this->addTerms($double_title, $game_platform, 'platform');
 
             return false;
         }
@@ -113,15 +127,12 @@ class MarcTVTGDBImporter
             $overview = '';
         }
 
-        if (isset ($game->Game->GameTitle)) {
-            $game_title = $game->Game->GameTitle;
-        } else {
-            return false;
-        }
+
 
         if (isset ($game->Game->ReleaseDate)) {
             $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate) + 43200); // release date plus 12 hours.
         } else {
+            error_log('error in releasedate');
             return false;
         }
 
@@ -129,7 +140,7 @@ class MarcTVTGDBImporter
             'post_content' => $overview,
             'post_title' => $game_title,
             'post_date' => $release_date, //[ Y-m-d H:i:s ]
-            'import_id' => $game->Game->id
+            'import_id' => $game_id
         ));
 
         // Insert the post into the database
@@ -152,13 +163,22 @@ class MarcTVTGDBImporter
                 $this->addCustomField($wp_id, 'Youtube', $game->Game->Youtube);
             }
 
+            if(isset($game->Game->{'Co-op'})) {
+                $this->addCustomField($wp_id, 'Co-op', $game->Game->{'Co-op'});
+            }
+
+             if(isset($game->Game->Players)) {
+                $this->addCustomField($wp_id, 'Players', $game->Game->Players);
+            }
+
             if(isset($game->Game->Genres->genre)) {
                 $this->addTerms($wp_id, $game->Game->Genres->genre, 'genre');
             }
 
-            if(isset($game->Game->Platform)) {
-                $this->addTerms($wp_id, $game->Game->Platform, 'platform');
+            if(isset($game_platform)) {
+                $this->addTerms($wp_id, $game_platform, 'platform');
             }
+
 
             if(isset($game->Game->Images)) {
                 $image_urls = $this->getTreeLeaves($game->Game->Images);
@@ -289,21 +309,30 @@ class MarcTVTGDBImporter
         return $games;
     }
 
-    public function import($name, $limit = 10){
+    public function import($name, $limit = 0){
         //$games = $this->searchGamesByName($name, $limit);
-        $games = $this->getGamesByPlatform($name);
-
+        //$games = $this->getGamesByPlatform($name);
+        var_dump($this->createGame(24451));
+        /*
+        echo "<pre>";
+        var_dump($games);
+        echo "</pre>";
+        */
+        /*
         if (count($games->Game) > 0) {
 
             $i = 0;
 
             foreach ($games->Game as $game) {
                 $id = $game->id;
-                $this->createGame($id);
+                if(!$this->createGame($id)){
+                    echo '<p>Error in: ' .$id . '</p>';
+                }
                 if (++$i == $limit) break;
             }
         }
         //4919 / 15
+        */
     }
 
 }
