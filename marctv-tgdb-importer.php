@@ -118,10 +118,13 @@ class MarcTVTGDBImporter
         if ($this->post_exists($game_id)) {
             $this->log($game_id, 'ID already exists.');
 
+            // try to update game with image
             if (!has_post_thumbnail($game_id)) {
-                // try to update game with image
-                $this->savePostImage($game_id, $game, $game_title, $release_date);
+                if ($attachment_id = $this->savePostImage($game_id, $game, $game_title, $release_date)) {
+                    $this->log($game_id, 'updated with image.');
+                }
             }
+
             return false;
         }
 
@@ -140,8 +143,6 @@ class MarcTVTGDBImporter
 
             return false;
         }
-
-
 
 
         $post_attributes = array_merge($this->post_defaults, array(
@@ -268,9 +269,13 @@ class MarcTVTGDBImporter
 
             /* set upload directory structure to release date */
             $time = date("Y/m", strtotime($release_date));
-            $this->saveURLtoPostThumbnail($wp_id, $url, $title, $this->image_type, $time);
+
+            if ($attachment_id = $this->saveURLtoPostThumbnail($wp_id, $url, $title, $this->image_type, $time)) {
+                return $attachment_id;
+            }
         }
 
+        return false;
     }
 
 
@@ -313,6 +318,8 @@ class MarcTVTGDBImporter
                 wp_update_attachment_metadata($attachment_id, $attachment_data);
                 set_post_thumbnail($parent_post_id, $attachment_id);
             }
+            return $attachment_id;
+
         } else {
             return false;
         }
