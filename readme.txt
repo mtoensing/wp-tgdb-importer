@@ -18,8 +18,15 @@ Imports games from TheGameDatabase API as "game" post types.
 
 == Changelog ==
 
+= 0.6 =
+
+to-do:
+
+error logging to custom log
+display custom log on import
+update method for new content for the same game
+
 = 0.5 =
-to-do
 
 * overview to custom field.
 * better error handling.

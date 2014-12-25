@@ -4,7 +4,7 @@
 Plugin Name: MarcTV The GameDatabase Importer
 Plugin URI: http://marctv.de/blog/marctv-wordpress-plugins/
 Description:
-Version:  0.2
+Version:  0.4
 Author:  Marc Tönsing
 Author URI: marctv.de
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -14,10 +14,12 @@ require_once('classes/game-api.php');
 
 class MarcTVTGDBImporter
 {
-    private $version = '0.2';
-    private $include_images = 'front';
+    private $version = '0.4';
+    private $image_type = 'front';
     private $pluginPrefix = 'marctv-tgdb-importer';
+    private $supported_platforms = '15, 12, 39,4920,4919'; // http://thegamesdb.net/api/GetPlatformsList.php
     private $post_defaults = '';
+    private $game_api;
 
     public function __construct()
     {
@@ -28,13 +30,12 @@ class MarcTVTGDBImporter
             'ping_status' => get_option('default_ping_status'),
             'post_parent' => 0,
             'menu_order' => 0,
-            'to_ping' => '',
-            'pinged' => '',
             'post_password' => '',
-            'guid' => '',
             'post_content_filtered' => '',
             'post_excerpt' => ''
         );
+
+        $this->game_api = new gameDB();
 
         $this->initBackend();
     }
@@ -76,125 +77,155 @@ class MarcTVTGDBImporter
 
     public function createGame($id)
     {
-        $gameAPI = new gameDB();
-        $game = $gameAPI->getGame($id);
+        $game = $this->game_api->getGame($id);
 
-        /*
-        echo "<pre>";
-        var_dump($game->Game);
-        echo "</pre>";
-        */
+        if ($post_attributes = $this->getPostAttributes($game)) {
+            if ($wp_id = $this->insertGame($game, $post_attributes)) {
+                return $wp_id;
+            }
+        }
 
-        if(isset($game->Game->id)) {
+        return false;
+
+    }
+
+    public function getPostAttributes($game)
+    {
+
+        if (isset($game->Game->id)) {
             $game_id = $game->Game->id;
         } else {
-            error_log('ID ' . $game_id . ': error: no ID');
+            $this->log(0, 'no id.');
             return false;
         }
 
         if (isset ($game->Game->GameTitle)) {
             $game_title = $game->Game->GameTitle;
         } else {
-            error_log('ID ' . $game_id . ': error in game title');
+            $this->log($game_id, 'no title.');
             return false;
         }
-
-        if(isset($game->Game->Platform)) {
-            $game_platform = $game->Game->Platform;
-        }
-
-        /* check if post/game id exists */
-        if ($this->post_exists($game_id)) {
-            return '<p>ID ' . $game_id . ' with the title <a href="/wp-admin/post.php?post=' . $game_id . '&action=edit">' . get_the_title($game_id) . '</a> already exists! </p>';
-            error_log('ID ' . $game_id . ' already exists!');
-
-            return false;
-        }
-
-        /* check if game already exists */
-        if ($double_title = $this->post_exists_by_title(($game_title))) {
-            echo 'Title ' . $game_title . ' already exists! Adding platform.</p>';
-            error_log('Title ' . $game_title . ' already exists! Adding platform.');
-            /* add the platforms */
-            $this->addTerms($double_title, $game_platform, 'platform');
-
-            return false;
-        }
-
-        if (isset($game->Game->Overview)) {
-            $overview = $game->Game->Overview;
-        } else {
-            $overview = '';
-        }
-
-
 
         if (isset ($game->Game->ReleaseDate)) {
             $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate) + 43200); // release date plus 12 hours.
         } else {
-            error_log('ID ' . $game_id . ': error in releasedate');
+            $this->log($game_id, 'no release date.');
+
             return false;
         }
 
+        /* check if post/game id exists */
+        if ($this->post_exists($game_id)) {
+            $this->log($game_id, 'ID already exists.');
+
+            if (!has_post_thumbnail($game_id)) {
+                // try to update game with image
+                $this->savePostImage($game_id, $game, $game_title, $release_date);
+            }
+            return false;
+        }
+
+
+        if (isset($game->Game->Platform)) {
+            $game_platform = $game->Game->Platform;
+        } else {
+            $this->log($game_id, 'no platform.');
+            return false;
+        }
+
+        /* check if game already exists */
+        if ($id = $this->post_exists_by_title(($game_title))) {
+            $this->log($id, $game_title . ' already exists! Adding platform.');
+            $this->addTerms($id, $game_platform, 'platform');
+
+            return false;
+        }
+
+
+
+
         $post_attributes = array_merge($this->post_defaults, array(
-            'post_content' => $overview,
+            'post_content' => '',
             'post_title' => $game_title,
             'post_date' => $release_date, //[ Y-m-d H:i:s ]
             'import_id' => $game_id
         ));
 
+        return $post_attributes;
+    }
+
+    private function log($id = 0, $msg = '')
+    {
+        error_log('id ' . $id . ': ' . $msg);
+    }
+
+    public function insertGame($game, $post_attributes)
+    {
+
         // Insert the post into the database
         if ($wp_id = wp_insert_post($post_attributes)) {
-            echo '<p>Successfully created <a href="/wp-admin/post.php?post=' . $wp_id . '&action=edit">' . $game_title . '</a></p>';
 
-            if(isset($game->Game->Developer)) {
+            if ($wp_id != $post_attributes['import_id']) {
+                $this->log($wp_id, 'id collusion');
+            }
+
+            if (isset($game->Game->Developer)) {
                 $this->addCustomField($wp_id, 'Developer', $game->Game->Developer);
             }
 
-            if(isset($game->Game->Publisher)) {
+            if (isset($game->Game->Publisher)) {
                 $this->addCustomField($wp_id, 'Publisher', $game->Game->Publisher);
             }
 
-            if(isset($game->Game->ESRB)) {
+            if (isset($game->Game->ESRB)) {
                 $this->addCustomField($wp_id, 'ESRB', $game->Game->ESRB);
             }
 
-            if(isset($game->Game->Youtube)) {
+            if (isset($game->Game->Youtube)) {
                 $this->addCustomField($wp_id, 'Youtube', $game->Game->Youtube);
             }
 
-            if(isset($game->Game->{'Co-op'})) {
+            if (isset($game->Game->{'Co-op'})) {
                 $this->addCustomField($wp_id, 'Co-op', $game->Game->{'Co-op'});
             }
 
-             if(isset($game->Game->Players)) {
+            if (isset($game->Game->Players)) {
                 $this->addCustomField($wp_id, 'Players', $game->Game->Players);
             }
 
-            if(isset($game->Game->Genres->genre)) {
+            if (isset($game->Game->Overview)) {
+                $this->addCustomField($wp_id, 'Overview', $game->Game->Overview);
+            }
+
+            if (isset($game->Game->Genres->genre)) {
                 $this->addTerms($wp_id, $game->Game->Genres->genre, 'genre');
             }
 
-            if(isset($game_platform)) {
-                $this->addTerms($wp_id, $game_platform, 'platform');
+            if (isset($game->Game->Platform)) {
+                $this->addTerms($wp_id, $game->Game->Platform, 'platform');
             }
 
-
-            if(isset($game->Game->Images)) {
-                $image_urls = $this->getTreeLeaves($game->Game->Images);
-                foreach($image_urls as $image_url){
-                    $url = $game->baseImgUrl.$image_url;
-                    $path = explode('/',$image_url);
-                    $title = $game_title . ' - ' . $path[0];
-                    /* set upload directory to the date as the release date */
-                    $time = date("Y/m", strtotime($release_date));
-
-                    $this->saveImage($wp_id, $url, $title, $this->include_images, $time);
-                }
+            if (isset($game->Game->Images)) {
+                $this->savePostImage($wp_id, $game, $post_attributes['post_title'], $post_attributes['post_date']);
             }
 
-            return true;
+            $this->log($wp_id, 'Success! ' . $post_attributes['post_title'] . ' has been created!');
+            return $wp_id;
+
+        } else {
+
+            return false;
+
         }
+
+    }
+
+
+    private function dumpGame($game)
+    {
+        echo '<pre>';
+        var_dump($game);
+        echo '</pre>';
     }
 
     public function getTreeLeaves($object)
@@ -205,7 +236,7 @@ class MarcTVTGDBImporter
         while ($iterator->valid()) {
 
             if ($iterator->hasChildren()) {
-                $return = array_merge($this->getTreeLeaves($iterator->getChildren()),$return);
+                $return = array_merge($this->getTreeLeaves($iterator->getChildren()), $return);
             } else {
                 $return[] = $iterator->current();
             }
@@ -215,23 +246,40 @@ class MarcTVTGDBImporter
         return $return;
     }
 
-    public function strposa($haystack, $needles=array(), $offset=0) {
+    public function strposa($haystack, $needles = array(), $offset = 0)
+    {
         $chr = array();
-        foreach($needles as $needle) {
+        foreach ($needles as $needle) {
             $res = strpos($haystack, $needle, $offset);
             if ($res !== false) $chr[$needle] = $res;
         }
-        if(empty($chr)) return false;
+        if (empty($chr)) return false;
         return min($chr);
     }
 
-
-    public function saveImage($wp_id, $url, $title = '', $include_csv = '', $time = null)
+    public function savePostImage($wp_id, $game, $title, $release_date)
     {
-        if(!empty($include_csv)) {
+        $image_urls = $this->getTreeLeaves($game->Game->Images);
+
+        foreach ($image_urls as $image_url) {
+            $url = $game->baseImgUrl . $image_url;
+            $path = explode('/', $image_url);
+            $title = $title . ' - ' . $path[0];
+
+            /* set upload directory structure to release date */
+            $time = date("Y/m", strtotime($release_date));
+            $this->saveURLtoPostThumbnail($wp_id, $url, $title, $this->image_type, $time);
+        }
+
+    }
+
+
+    public function saveURLtoPostThumbnail($wp_id, $url, $title = '', $include_csv = '', $time = null)
+    {
+        if (!empty($include_csv)) {
             $include_array = explode(',', $include_csv);
 
-            if(!$this->strposa($url,$include_array)){
+            if (!$this->strposa($url, $include_array)) {
                 return false;
             }
         }
@@ -241,7 +289,7 @@ class MarcTVTGDBImporter
         $wp_filetype = wp_check_filetype(basename($file), null);
         $filename = strtolower(sanitize_file_name($title)) . '.' . $wp_filetype['ext'];
 
-        if(!isset($title)) {
+        if (!isset($title)) {
             $title = preg_replace('/\.[^.]+$/', '', $filename);
             $filename = basename($file);
         }
@@ -263,7 +311,7 @@ class MarcTVTGDBImporter
                 require_once(ABSPATH . "wp-admin" . '/includes/image.php');
                 $attachment_data = wp_generate_attachment_metadata($attachment_id, $upload_file['file']);
                 wp_update_attachment_metadata($attachment_id, $attachment_data);
-                set_post_thumbnail( $parent_post_id, $attachment_id );
+                set_post_thumbnail($parent_post_id, $attachment_id);
             }
         } else {
             return false;
@@ -296,29 +344,24 @@ class MarcTVTGDBImporter
 
     public function searchGamesByName($name)
     {
-        $gameAPI = new gameDB();
-        $games = $gameAPI->getGamesList($name);
+        $games = $this->game_api->getGamesList($name);
 
         return $games;
 
     }
 
-    public function getGamesByPlatform($id) {
-        $gameAPI = new gameDB();
-        $games = $gameAPI->getPlatformGames($id);
+    public function getGamesByPlatform($id)
+    {
+
+        $games = $this->game_api->getPlatformGames($id);
 
         return $games;
     }
 
-    public function import($name, $limit = 0){
-        //$games = $this->searchGamesByName($name, $limit);
-        $games = $this->getGamesByPlatform($name); // 4919 / 15
-        //var_dump($this->createGame(24451));
-        /*
-        echo "<pre>";
-        var_dump($games);
-        echo "</pre>";
-        */
+    public function import($id, $limit = 0)
+    {
+
+        $games = $this->getGamesByPlatform($id);
 
         if (count($games->Game) > 0) {
 
@@ -326,8 +369,10 @@ class MarcTVTGDBImporter
 
             foreach ($games->Game as $game) {
                 $id = $game->id;
-                if(!$this->createGame($id)){
-                    echo '<p>Error in: ' .$id . '</p>';
+                if ($this->createGame($id)) {
+                    echo '<p>Successfully created <a href="/wp-admin/post.php?post=' . $id . '&action=edit">' . $id . '</a></p>';
+                } else {
+                    echo '<p>error in id ' . $id . ' see log for details.</p>';
                 }
                 if (++$i == $limit) break;
             }

@@ -30,7 +30,7 @@ if (!current_user_can('manage_options')) {
                            value=""
                            class="regular-text">
 
-                    <p class="description">The Platform ID</p>
+                    <p class="description"><a href="http://thegamesdb.net/api/GetPlatformsList.php">The Platform IDs</a></p>
                 </td>
             </tr>
 
