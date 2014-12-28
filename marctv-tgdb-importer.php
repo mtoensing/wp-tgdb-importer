@@ -17,7 +17,7 @@ class MarcTVTGDBImporter
     private $version = '0.4';
     private $pluginUrl = '';
     private $updatedSeconds = 20000;
-    private $supported_platforms = array('PC','Microsoft Xbox One','Sony Playstation 4','Sony Playstation 3','Sony Playstation Vita','Nintendo Wii','Nintendo Wii U','Microsoft Xbox 360');
+    private $supported_platforms = array('PC','Microsoft Xbox One','Sony Playstation 4','Sony Playstation 3','Sony Playstation Vita','Nintendo Wii','Nintendo Wii U','Microsoft Xbox 360', 'Nintendo 3DS');
     private $image_type = 'front';
     private $pluginPrefix = 'marctv-tgdb';
     private $logfile = 'tgdbimport.log';
