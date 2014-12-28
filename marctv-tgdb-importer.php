@@ -17,7 +17,7 @@ class MarcTVTGDBImporter
     private $version = '0.4';
     private $pluginUrl = '';
     private $image_type = 'front';
-    private $pluginPrefix = 'marctv-tgdb-importer';
+    private $pluginPrefix = 'marctv-tgdb';
     private $post_defaults = '';
     private $game_api;
 
@@ -46,12 +46,24 @@ class MarcTVTGDBImporter
     public function initBackend()
     {
         add_action('admin_menu', array($this, 'tgdb_import_menu'));
+        add_action('admin_init', array($this, 'registerSettings'));
+
+    }
+
+    /**
+     * Registers settings for plugin.
+     */
+    public function registerSettings()
+    {
+        register_setting($this->pluginPrefix . '-settings-group', $this->pluginPrefix . '-platform');
+        register_setting($this->pluginPrefix . '-settings-group', $this->pluginPrefix . '-limit');
+        register_setting($this->pluginPrefix . '-settings-group', $this->pluginPrefix . '-startimport');
 
     }
 
     public function tgdb_import_menu()
     {
-        $hook_suffix = add_submenu_page('tools.php', 'TGDB Import', 'TGDB Import', 'manage_options', $this->pluginPrefix, array($this, 'tgdb_import_options'));
+        $hook_suffix = add_options_page('TGDB Import', 'TGDB Import', 'manage_options', $this->pluginPrefix, array($this, 'tgdb_import_options'));
         add_action('admin_head-' . $hook_suffix, array($this, 'tgdb_admin_head'));
     }
 
@@ -60,8 +72,9 @@ class MarcTVTGDBImporter
         require_once('pages/settings.php');
     }
 
-    public function tgdb_admin_head() {
-        wp_enqueue_style($this->pluginPrefix . '_style', $this->pluginUrl . "/marctv-tgdb.css", '', $this->version);
+    public function tgdb_admin_head()
+    {
+        //wp_enqueue_style($this->pluginPrefix . '_style', $this->pluginUrl . "/marctv-tgdb.css", '', $this->version);
     }
 
     private function post_exists($id)
@@ -98,10 +111,38 @@ class MarcTVTGDBImporter
 
     public function contains($str, array $arr)
     {
-        foreach($arr as $a) {
-            if (strpos($a,$str) !== false) return true;
+        foreach ($arr as $a) {
+            if (strpos($a, $str) !== false) return true;
         }
         return false;
+    }
+
+    public function getPlatformTitle($platforms){
+        foreach ($platforms->Platforms->Platform as $platform) {
+            if ($platform->id == get_option($this->pluginPrefix . '-platform')) {
+                $platform_title = $platform->name;
+            }
+        }
+
+        return $platform_title;
+    }
+
+    public function getPlatforms() {
+        // Get any existing copy of our transient data
+        if (false === ($platforms = get_transient('marctv-tgdb-plattforms'))) {
+            // It wasn't there, so regenerate the data and save the transient
+
+            $call = wp_remote_get('http://thegamesdb.net/api/GetPlatformsList.php');
+            $body = wp_remote_retrieve_body($call);
+
+            $xmlbody = simplexml_load_string($body);
+            $json = json_encode($xmlbody);
+            $platforms = json_decode($json);
+
+            set_transient('marctv-tgdb-plattforms', $platforms, 48 * HOUR_IN_SECONDS);
+        }
+
+        return $platforms;
     }
 
     public function getPostAttributes($game)
@@ -386,33 +427,17 @@ class MarcTVTGDBImporter
 
     public function import($id, $limit = 0)
     {
-
         $games = $this->getGamesByPlatform($id);
-
         if (count($games->Game) > 0) {
-
             $i = 0;
-
             foreach ($games->Game as $game) {
                 $id = $game->id;
-
-
-                    $this->createGame($id);
-
-
-                ob_flush();
+                $this->createGame($id);
                 flush();
-
-
                 if (++$i == $limit) break;
             }
         }
-
-        ob_end_flush();
-
-
     }
-
 }
 
 
