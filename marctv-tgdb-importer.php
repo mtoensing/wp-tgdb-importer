@@ -158,6 +158,7 @@ class MarcTVTGDBImporter
     private function log($id = 0, $msg = '')
     {
         error_log('id ' . $id . ': ' . $msg);
+        echo '<a href="http://shortscore.local/wp-admin/post.php?post=' . $id. '&action=edit">id ' . $id . '</a>: ' . $msg . '</br>';
     }
 
     public function insertGame($game, $post_attributes)
@@ -222,10 +223,10 @@ class MarcTVTGDBImporter
     }
 
 
-    private function dumpGame($game)
+    private function dump($stuff)
     {
         echo '<pre>';
-        var_dump($game);
+        var_dump($stuff);
         echo '</pre>';
     }
 
@@ -376,14 +377,19 @@ class MarcTVTGDBImporter
 
             foreach ($games->Game as $game) {
                 $id = $game->id;
-                if ($this->createGame($id)) {
-                    echo '<p>Successfully created <a href="/wp-admin/post.php?post=' . $id . '&action=edit">' . $id . '</a></p>';
-                } else {
-                    echo '<p>error in id ' . $id . ' see log for details.</p>';
-                }
+
+
+                $this->createGame($id);
+
+                ob_flush();
+                flush();
+                sleep(2);
+
                 if (++$i == $limit) break;
             }
         }
+
+        ob_end_flush();
 
 
     }
