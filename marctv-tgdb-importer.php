@@ -16,8 +16,10 @@ class MarcTVTGDBImporter
 {
     private $version = '0.4';
     private $pluginUrl = '';
+    private $updatedSeconds = 20000;
     private $image_type = 'front';
     private $pluginPrefix = 'marctv-tgdb';
+    private $logfile = 'tgdbimport.log';
     private $post_defaults = '';
     private $game_api;
 
@@ -40,6 +42,8 @@ class MarcTVTGDBImporter
         $this->pluginUrl = plugins_url(false, __FILE__);
 
         $this->initBackend();
+
+        $this->addCron();
     }
 
 
@@ -47,7 +51,6 @@ class MarcTVTGDBImporter
     {
         add_action('admin_menu', array($this, 'tgdb_import_menu'));
         add_action('admin_init', array($this, 'registerSettings'));
-
     }
 
     /**
@@ -64,7 +67,7 @@ class MarcTVTGDBImporter
     public function tgdb_import_menu()
     {
         $hook_suffix = add_options_page('TGDB Import', 'TGDB Import', 'manage_options', $this->pluginPrefix, array($this, 'tgdb_import_options'));
-        add_action('admin_head-' . $hook_suffix, array($this, 'tgdb_admin_head'));
+        //add_action('admin_head-' . $hook_suffix, array($this, 'tgdb_admin_head'));
     }
 
     public function tgdb_import_options()
@@ -106,7 +109,6 @@ class MarcTVTGDBImporter
         }
 
         return false;
-
     }
 
     public function contains($str, array $arr)
@@ -114,6 +116,7 @@ class MarcTVTGDBImporter
         foreach ($arr as $a) {
             if (strpos($a, $str) !== false) return true;
         }
+
         return false;
     }
 
@@ -144,6 +147,16 @@ class MarcTVTGDBImporter
 
         return $platforms;
     }
+
+    public function writeLog($msg) {
+
+        $upload_dir = wp_upload_dir();
+
+        $file = $upload_dir['basedir']. '/'. $this->logfile;
+
+        file_put_contents($file, $msg.PHP_EOL, FILE_APPEND);
+    }
+
 
     public function getPostAttributes($game)
     {
@@ -209,7 +222,8 @@ class MarcTVTGDBImporter
 
     private function log($id = 0, $type, $msg = '')
     {
-        error_log($type . ': ' . 'id ' . $id . ' ' . $msg);
+        //error_log($type . ': ' . 'id ' . $id . ' ' . $msg);
+        $this->writeLog($type . ': ' . 'id ' . $id . ' ' . $msg);
 
         if ($type != 'error') {
             echo '<span class="tgdb-' . $type . '">' . $type . '</span>: <a href="http://shortscore.local/wp-admin/post.php?post=' . $id . '&action=edit">id ' . $id . '</a> ' . $msg . '</br>';
@@ -423,6 +437,29 @@ class MarcTVTGDBImporter
         $games = $this->game_api->getPlatformGames($id);
 
         return $games;
+    }
+
+    public function addCron() {
+        add_action( 'wp', array($this, 'prefix_setup_schedule') );
+        add_action( 'startGamesImport', array($this, 'updateGames') );
+    }
+
+
+    public function prefix_setup_schedule() {
+
+        if ( ! wp_next_scheduled( 'startGamesImport' ) ) {
+            wp_schedule_event( time(), 'twicedaily', 'startGamesImport');
+        }
+    }
+
+    public function updateGames() {
+
+        $games = $this->game_api->getUpdatedGames($this->updatedSeconds);
+
+        foreach($games->Game as $id){
+            $this->createGame($id);
+        }
+
     }
 
     public function import($id, $limit = 0)
