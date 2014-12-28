@@ -68,7 +68,7 @@ if (!current_user_can('manage_options')) {
                 <td>
                     <p><input id="marctv-tgdb-limit"
                               name="marctv-tgdb-limit" <?php checked(get_option($this->pluginPrefix . '-limit'), 'on'); ?>
-                              type="checkbox"/> <label for="marctv-tgdb-limit">Limit the items for the import to 10</label>
+                              type="checkbox"/> <label for="marctv-tgdb-limit">Limit the items of the import to 10</label>
                     </p>
                 </td>
             </tr>

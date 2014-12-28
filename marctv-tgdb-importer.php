@@ -17,6 +17,7 @@ class MarcTVTGDBImporter
     private $version = '0.4';
     private $pluginUrl = '';
     private $updatedSeconds = 20000;
+    private $supported_platforms = array('PC','Microsoft Xbox One','Sony Playstation 4','Sony Playstation 3','Sony Playstation Vita','Nintendo Wii','Nintendo Wii U','Microsoft Xbox 360');
     private $image_type = 'front';
     private $pluginPrefix = 'marctv-tgdb';
     private $logfile = 'tgdbimport.log';
@@ -120,7 +121,8 @@ class MarcTVTGDBImporter
         return false;
     }
 
-    public function getPlatformTitle($platforms){
+    public function getPlatformTitle($platforms)
+    {
         foreach ($platforms->Platforms->Platform as $platform) {
             if ($platform->id == get_option($this->pluginPrefix . '-platform')) {
                 $platform_title = $platform->name;
@@ -130,7 +132,8 @@ class MarcTVTGDBImporter
         return $platform_title;
     }
 
-    public function getPlatforms() {
+    public function getPlatforms()
+    {
         // Get any existing copy of our transient data
         if (false === ($platforms = get_transient('marctv-tgdb-plattforms'))) {
             // It wasn't there, so regenerate the data and save the transient
@@ -148,13 +151,14 @@ class MarcTVTGDBImporter
         return $platforms;
     }
 
-    public function writeLog($msg) {
+    public function writeLog($msg)
+    {
 
         $upload_dir = wp_upload_dir();
 
-        $file = $upload_dir['basedir']. '/'. $this->logfile;
+        $file = $upload_dir['basedir'] . '/' . $this->logfile;
 
-        file_put_contents($file, $msg.PHP_EOL, FILE_APPEND);
+        file_put_contents($file, $msg . PHP_EOL, FILE_APPEND);
     }
 
 
@@ -201,6 +205,13 @@ class MarcTVTGDBImporter
             $this->log($game_id, 'error', 'no platform.');
             return false;
         }
+
+
+        if(!in_array($game_platform, $this->supported_platforms)) {
+            $this->log($game_id, 'error', 'Platform ' . $game_platform . ' not supported.');
+            return false;
+        }
+
 
         /* check if game already exists */
         if ($id = $this->post_exists_by_title(($game_title))) {
@@ -439,24 +450,27 @@ class MarcTVTGDBImporter
         return $games;
     }
 
-    public function addCron() {
-        add_action( 'wp', array($this, 'prefix_setup_schedule') );
-        add_action( 'startGamesImport', array($this, 'updateGames') );
+    public function addCron()
+    {
+        add_action('wp', array($this, 'prefix_setup_schedule'));
+        add_action('startGamesImport', array($this, 'updateGames'));
     }
 
 
-    public function prefix_setup_schedule() {
+    public function prefix_setup_schedule()
+    {
 
-        if ( ! wp_next_scheduled( 'startGamesImport' ) ) {
-            wp_schedule_event( time(), 'twicedaily', 'startGamesImport');
+        if (!wp_next_scheduled('startGamesImport')) {
+            wp_schedule_event(time(), 'twicedaily', 'startGamesImport');
         }
     }
 
-    public function updateGames() {
+    public function updateGames()
+    {
 
         $games = $this->game_api->getUpdatedGames($this->updatedSeconds);
 
-        foreach($games->Game as $id){
+        foreach ($games->Game as $id) {
             $this->createGame($id);
         }
 
