@@ -15,9 +15,9 @@ require_once('classes/game-api.php');
 class MarcTVTGDBImporter
 {
     private $version = '0.4';
+    private $pluginUrl = '';
     private $image_type = 'front';
     private $pluginPrefix = 'marctv-tgdb-importer';
-    private $supported_platforms = '15, 12, 39,4920,4919'; // http://thegamesdb.net/api/GetPlatformsList.php
     private $post_defaults = '';
     private $game_api;
 
@@ -37,6 +37,8 @@ class MarcTVTGDBImporter
 
         $this->game_api = new gameDB();
 
+        $this->pluginUrl = plugins_url(false, __FILE__);
+
         $this->initBackend();
     }
 
@@ -44,11 +46,13 @@ class MarcTVTGDBImporter
     public function initBackend()
     {
         add_action('admin_menu', array($this, 'tgdb_import_menu'));
+
     }
 
     public function tgdb_import_menu()
     {
-        add_submenu_page('tools.php', 'TGDB Import', 'TGDB Import', 'manage_options', $this->pluginPrefix, array($this, 'tgdb_import_options'));
+        $hook_suffix = add_submenu_page('tools.php', 'TGDB Import', 'TGDB Import', 'manage_options', $this->pluginPrefix, array($this, 'tgdb_import_options'));
+        add_action('admin_head-' . $hook_suffix, array($this, 'tgdb_admin_head'));
     }
 
     public function tgdb_import_options()
@@ -56,6 +60,9 @@ class MarcTVTGDBImporter
         require_once('pages/settings.php');
     }
 
+    public function tgdb_admin_head() {
+        wp_enqueue_style($this->pluginPrefix . '_style', $this->pluginUrl . "/marctv-tgdb.css", '', $this->version);
+    }
 
     private function post_exists($id)
     {
@@ -99,7 +106,6 @@ class MarcTVTGDBImporter
 
     public function getPostAttributes($game)
     {
-
         if (isset($game->Game->id)) {
             $game_id = $game->Game->id;
         } else {
@@ -107,16 +113,17 @@ class MarcTVTGDBImporter
             return false;
         }
 
+        /* check if post/game id exists */
+        if ($this->post_exists($game_id)) {
+            $this->log($game_id, 'error', 'already exists.');
+
+            return false;
+        }
+
         if (isset ($game->Game->GameTitle)) {
             $game_title = $game->Game->GameTitle;
         } else {
             $this->log($game_id, 'error', 'no title.');
-            return false;
-        }
-
-        /* check if image is present */
-        if (!$this->contains($this->image_type, $this->getTreeLeaves($game->Game->Images))) {
-            $this->log($game_id, 'error', 'no ' . $this->image_type . ' image.');
             return false;
         }
 
@@ -128,13 +135,11 @@ class MarcTVTGDBImporter
             return false;
         }
 
-        /* check if post/game id exists */
-        if ($this->post_exists($game_id)) {
-            $this->log($game_id, 'error', 'already exists.');
-
+        /* check if image is present */
+        if (!$this->contains($this->image_type, $this->getTreeLeaves($game->Game->Images))) {
+            $this->log($game_id, 'error', 'no ' . $this->image_type . ' image.');
             return false;
         }
-
 
         if (isset($game->Game->Platform)) {
             $game_platform = $game->Game->Platform;
@@ -150,7 +155,6 @@ class MarcTVTGDBImporter
 
             return false;
         }
-
 
         $post_attributes = array_merge($this->post_defaults, array(
             'post_content' => '',
