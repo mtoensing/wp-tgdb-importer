@@ -16,19 +16,22 @@ class MarcTVTGDBImporter
 {
     private $version = '0.4';
     private $pluginUrl = '';
-    private $updatedSeconds = 20000;
-    private $supported_platforms = array('PC','Microsoft Xbox One','Sony Playstation 4','Sony Playstation 3','Sony Playstation Vita','Nintendo Wii','Nintendo Wii U','Microsoft Xbox 360', 'Nintendo 3DS');
+    private $updatedSeconds = 86400;
+    private $supported_platforms = array('Microsoft Xbox One', 'Sony Playstation 4', 'Sony Playstation 3', 'Sony Playstation Vita', 'Nintendo Wii', 'Nintendo Wii U', 'Microsoft Xbox 360', 'Nintendo 3DS');
     private $image_type = 'front';
     private $pluginPrefix = 'marctv-tgdb';
     private $logfile = 'tgdbimport.log';
     private $post_defaults = '';
+    private $post_type = 'game';
     private $game_api;
 
     public function __construct()
     {
+        $this->pluginUrl = plugins_url(false, __FILE__);
+
         $this->post_defaults = array(
             'post_status' => 'publish',
-            'post_type' => 'game',
+            'post_type' => $this->post_type,
             'post_author' => 1,
             'ping_status' => get_option('default_ping_status'),
             'post_parent' => 0,
@@ -40,11 +43,70 @@ class MarcTVTGDBImporter
 
         $this->game_api = new gameDB();
 
-        $this->pluginUrl = plugins_url(false, __FILE__);
+        $this->initDataStructures();
 
         $this->initBackend();
 
         $this->addCron();
+    }
+
+
+    public function initDataStructures()
+    {
+        // add_filter( 'pre_get_posts', array($this, 'my_get_posts' ));
+        add_action('init', array($this, 'create_post_type_game'));
+        add_action('init', array($this, 'create_platform_taxonomy'));
+        add_action('init', array($this, 'create_genre_taxonomy'));
+    }
+
+    public function create_post_type_game()
+    {
+        register_post_type('game',
+            array(
+                'labels' => array(
+                    'name' => __('Games'),
+                    'singular_name' => __('Game')
+                ),
+                'public' => true,
+                'taxonomies' => array(),
+                'has_archive' => true,
+                'yarpp_support' => true,
+                'supports' => array('title', 'editor', 'thumbnail', 'comments', 'custom-fields')
+            )
+        );
+    }
+
+
+    public function create_genre_taxonomy()
+    {
+        // create a new taxonomy
+        register_taxonomy(
+            'genre',
+            $this->post_type,
+            array(
+                'label' => __('Genre'),
+                'rewrite' => array(
+                    'slug' => 'genre'
+                ),
+            )
+        );
+    }
+
+    public function create_platform_taxonomy()
+    {
+        // create a new taxonomy
+        register_taxonomy(
+            'platform',
+            $this->post_type,
+            array(
+                'label' => __('Platform'),
+                'rewrite' => array(
+                    'slug' => 'platform',
+                    'hierarchical' => true
+                ),
+
+            )
+        );
     }
 
 
@@ -207,7 +269,7 @@ class MarcTVTGDBImporter
         }
 
 
-        if(!in_array($game_platform, $this->supported_platforms)) {
+        if (!in_array($game_platform, $this->supported_platforms)) {
             $this->log($game_id, 'error', 'Platform ' . $game_platform . ' not supported.');
             return false;
         }
@@ -237,10 +299,10 @@ class MarcTVTGDBImporter
         $this->writeLog($type . ': ' . 'id ' . $id . ' ' . $msg);
 
         if ($type != 'error') {
-            echo '<span class="tgdb-' . $type . '">' . $type . '</span>: <a href="http://shortscore.local/wp-admin/post.php?post=' . $id . '&action=edit">id ' . $id . '</a> ' . $msg . '</br>';
+            echo '<span class="tgdb-' . $type . '">' . $type . '</span><a href="http://shortscore.local/wp-admin/post.php?post=' . $id . '&action=edit">id ' . $id . '</a>: ' . $msg . '</br>';
 
         } else {
-            echo '<span class="tgdb-' . $type . '">' . $type . '</span>: id ' . $id . ' ' . $msg . '</br>';
+            echo '<span class="tgdb-' . $type . '">' . $type . '</span>id ' . $id . ': ' . $msg . '</br>';
 
         }
     }
@@ -349,14 +411,13 @@ class MarcTVTGDBImporter
 
         foreach ($image_urls as $image_url) {
             $url = $game->baseImgUrl . $image_url;
-            $path = explode('/', $image_url);
-            $title = $title . ' - ' . $path[0];
 
             /* set upload directory structure to release date */
             $time = date("Y/m", strtotime($release_date));
-
-            if ($attachment_id = $this->saveURLtoPostThumbnail($wp_id, $url, $title, $this->image_type, $time)) {
-                return $attachment_id;
+            if (strpos($image_url, $this->image_type)) {
+                if ($attachment_id = $this->saveURLtoPostThumbnail($wp_id, $url, $title, $time)) {
+                    return $attachment_id;
+                }
             }
         }
 
@@ -364,27 +425,14 @@ class MarcTVTGDBImporter
     }
 
 
-    public function saveURLtoPostThumbnail($wp_id, $url, $title = '', $include_csv = '', $time = null)
+    public function saveURLtoPostThumbnail($wp_id, $url, $title, $time = null)
     {
-        if (!empty($include_csv)) {
-            $include_array = explode(',', $include_csv);
-
-            if (!$this->strposa($url, $include_array)) {
-                return false;
-            }
-        }
-
         $parent_post_id = $wp_id;
         $file = $url;
         $wp_filetype = wp_check_filetype(basename($file), null);
         $filename = strtolower(sanitize_file_name($title)) . '.' . $wp_filetype['ext'];
 
-        if (!isset($title)) {
-            $title = preg_replace('/\.[^.]+$/', '', $filename);
-            $filename = basename($file);
-        }
-
-        $upload_file = wp_upload_bits($filename, null, file_get_contents($file), $time);
+         $upload_file = wp_upload_bits($filename, null, file_get_contents($file), $time);
 
         if (!$upload_file['error']) {
 
