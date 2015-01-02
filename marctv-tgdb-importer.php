@@ -71,7 +71,7 @@ class MarcTVTGDBImporter
                 'taxonomies' => array(),
                 'has_archive' => true,
                 'yarpp_support' => true,
-                'supports' => array('title', 'editor', 'thumbnail', 'comments', 'custom-fields')
+                'supports' => array('title', 'editor', 'thumbnail', 'comments', 'custom-fields','post-formats')
             )
         );
     }
@@ -295,6 +295,8 @@ class MarcTVTGDBImporter
 
     private function log($id = 0, $type, $msg = '')
     {
+
+        $msg = $msg .' @'.  date("Y-m-d H:i:s");
         //error_log($type . ': ' . 'id ' . $id . ' ' . $msg);
         $this->writeLog($type . ': ' . 'id ' . $id . ' ' . $msg);
 
@@ -312,6 +314,8 @@ class MarcTVTGDBImporter
 
         // Insert the post into the database
         if ($wp_id = wp_insert_post($post_attributes)) {
+
+            $this->addCustomField($wp_id, 'score_value', 0);
 
             if ($wp_id != $post_attributes['import_id']) {
                 $this->log($wp_id, 'error', 'collusion');
