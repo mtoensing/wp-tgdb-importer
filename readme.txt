@@ -18,6 +18,10 @@ Imports games from TheGameDatabase API as "game" post types.
 
 == Changelog ==
 
+= 0.8 =
+
+Publisher and Developer as taxonomy.
+
 = 0.7 =
 
 Custom field "score" initalised with 0.

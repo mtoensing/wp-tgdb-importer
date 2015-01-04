@@ -56,6 +56,8 @@ class MarcTVTGDBImporter
         add_action('init', array($this, 'create_post_type_game'));
         add_action('init', array($this, 'create_platform_taxonomy'));
         add_action('init', array($this, 'create_genre_taxonomy'));
+        add_action('init', array($this, 'create_developer_taxonomy'));
+        add_action('init', array($this, 'create_publisher_taxonomy'));
     }
 
     public function create_post_type_game()
@@ -86,6 +88,36 @@ class MarcTVTGDBImporter
                 'label' => __('Genre'),
                 'rewrite' => array(
                     'slug' => 'genre'
+                ),
+            )
+        );
+    }
+
+    public function create_publisher_taxonomy()
+    {
+        // create a new taxonomy
+        register_taxonomy(
+            'publisher',
+            $this->post_type,
+            array(
+                'label' => __('Publisher'),
+                'rewrite' => array(
+                    'slug' => 'publisher'
+                ),
+            )
+        );
+    }
+
+    public function create_developer_taxonomy()
+    {
+        // create a new taxonomy
+        register_taxonomy(
+            'developer',
+            $this->post_type,
+            array(
+                'label' => __('Developer'),
+                'rewrite' => array(
+                    'slug' => 'developer'
                 ),
             )
         );
@@ -212,7 +244,7 @@ class MarcTVTGDBImporter
         return $platforms;
     }
 
-    public function writeLog($msg)
+    private function writeLog($msg)
     {
 
         $upload_dir = wp_upload_dir();
@@ -292,11 +324,10 @@ class MarcTVTGDBImporter
         return $post_attributes;
     }
 
-    private function log($id = 0, $type, $msg = '')
+    public function log($id = 0, $type, $msg = '')
     {
-
         $msg = $msg .' @'.  date("Y-m-d H:i:s");
-        //error_log($type . ': ' . 'id ' . $id . ' ' . $msg);
+
         $this->writeLog($type . ': ' . 'id ' . $id . ' ' . $msg);
 
         if ($type != 'error') {
@@ -321,11 +352,11 @@ class MarcTVTGDBImporter
             }
 
             if (isset($game->Game->Developer)) {
-                $this->addCustomField($wp_id, 'Developer', $game->Game->Developer);
+                $this->addTerms($wp_id, $game->Game->Developer, 'developer');
             }
 
             if (isset($game->Game->Publisher)) {
-                $this->addCustomField($wp_id, 'Publisher', $game->Game->Publisher);
+                $this->addTerms($wp_id, $game->Game->Publisher, 'publisher');
             }
 
             if (isset($game->Game->ESRB)) {
