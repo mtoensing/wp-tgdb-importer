@@ -16,7 +16,7 @@ class MarcTVTGDBImporter
 {
     private $pluginUrl = '';
     private $updatedSeconds = 86400;
-    private $supported_platforms = array('Microsoft Xbox One', 'Sony Playstation 4', 'Sony Playstation 3', 'Sony Playstation Vita', 'Nintendo Wii', 'Nintendo Wii U', 'Microsoft Xbox 360', 'Nintendo 3DS');
+    private $supported_platforms = array('PC', 'Microsoft Xbox One', 'Sony Playstation 4', 'Sony Playstation 3', 'Sony Playstation Vita', 'Nintendo Wii', 'Nintendo Wii U', 'Microsoft Xbox 360', 'Nintendo 3DS');
     private $image_type = 'front';
     private $pluginPrefix = 'marctv-tgdb';
     private $logfile = 'tgdbimport.log'; // should be writable in wp-content
