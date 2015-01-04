@@ -4,7 +4,7 @@
 Plugin Name: MarcTV The GameDatabase Importer
 Plugin URI: http://marctv.de/blog/marctv-wordpress-plugins/
 Description:
-Version:  0.4
+Version:  0.7
 Author:  Marc Tönsing
 Author URI: marctv.de
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -14,13 +14,12 @@ require_once('classes/game-api.php');
 
 class MarcTVTGDBImporter
 {
-    private $version = '0.4';
     private $pluginUrl = '';
     private $updatedSeconds = 86400;
     private $supported_platforms = array('Microsoft Xbox One', 'Sony Playstation 4', 'Sony Playstation 3', 'Sony Playstation Vita', 'Nintendo Wii', 'Nintendo Wii U', 'Microsoft Xbox 360', 'Nintendo 3DS');
     private $image_type = 'front';
     private $pluginPrefix = 'marctv-tgdb';
-    private $logfile = 'tgdbimport.log';
+    private $logfile = 'tgdbimport.log'; // should be writable in wp-content
     private $post_defaults = '';
     private $post_type = 'game';
     private $game_api;
@@ -301,7 +300,7 @@ class MarcTVTGDBImporter
         $this->writeLog($type . ': ' . 'id ' . $id . ' ' . $msg);
 
         if ($type != 'error') {
-            echo '<span class="tgdb-' . $type . '">' . $type . '</span><a href="http://shortscore.local/wp-admin/post.php?post=' . $id . '&action=edit">id ' . $id . '</a>: ' . $msg . '</br>';
+            echo '<span class="tgdb-' . $type . '">' . $type . '</span><a href="' . get_site_url() . '/wp-admin/post.php?post=' . $id . '&action=edit">id ' . $id . '</a>: ' . $msg . '</br>';
 
         } else {
             echo '<span class="tgdb-' . $type . '">' . $type . '</span>id ' . $id . ': ' . $msg . '</br>';

@@ -3,7 +3,7 @@ Contributors:  MarcDK
 Tags: tgdb, shortscore, API
 Requires at least: 3.0
 Tested up to: 4.1
-Stable tag: 0.4
+Stable tag: 0.7
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,9 +18,12 @@ Imports games from TheGameDatabase API as "game" post types.
 
 == Changelog ==
 
-= 0.6 =
+= 0.7 =
 
-to-do:
+Custom field "score" initalised with 0.
+Refactoring.
+
+= 0.6 =
 
 error logging to custom log
 display custom log on import
