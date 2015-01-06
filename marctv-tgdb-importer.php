@@ -182,7 +182,7 @@ class MarcTVTGDBImporter
     private function post_exists_by_title($title_str)
     {
         global $wpdb;
-        $sql_obj = $wpdb->get_row("SELECT * FROM wp_posts WHERE post_title = '" . esc_sql($title_str) . "'", 'ARRAY_A');
+        $sql_obj = $wpdb->get_row("SELECT * FROM wp_posts WHERE post_title = '" . esc_sql($title_str) . "' AND wp_posts.post_type = 'game'" , 'ARRAY_A');
 
         $id = $sql_obj['ID'];
         if (isset ($id)) {
@@ -260,56 +260,66 @@ class MarcTVTGDBImporter
         if (isset($game->Game->id)) {
             $game_id = $game->Game->id;
         } else {
-            $this->log(0, 'error', 'no id.');
-            return false;
-        }
-
-        /* check if post/game id exists */
-        if ($this->post_exists($game_id)) {
-            $this->log($game_id, 'error', 'already exists.');
-
+            $this->log('','','error', 'no id.');
             return false;
         }
 
         if (isset ($game->Game->GameTitle)) {
             $game_title = $game->Game->GameTitle;
         } else {
-            $this->log($game_id, 'error', 'no title.');
+            $this->log(0, $game_id, 'error', 'no title.');
             return false;
         }
 
         if (isset ($game->Game->ReleaseDate)) {
             $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate) + 43200); // release date plus 12 hours.
         } else {
-            $this->log($game_id, 'error', 'no release date.');
+            $this->log(0, $game_id, 'error', 'no release date.');
 
+            return false;
+        }
+
+        $args = array(
+            'meta_key'   => 'tgdb_id',
+            'meta_value' => $game_id,
+            'post_type' => 'game',
+        );
+        $query = new WP_Query( $args );
+
+        if(isset($query->posts[0]->ID)) {
+            $wpid = $query->posts[0]->ID;
+        }
+
+        if($query->have_posts()){
+            $this->log($wpid, $game_id, 'notice', $game_title . ' already exists.');
             return false;
         }
 
         /* check if image is present */
         if (!$this->contains($this->image_type, $this->getTreeLeaves($game->Game->Images))) {
-            $this->log($game_id, 'error', 'no ' . $this->image_type . ' image.');
+            $this->log(0, $game_id, 'error', 'no ' . $this->image_type . ' image.');
             return false;
         }
 
         if (isset($game->Game->Platform)) {
             $game_platform = $game->Game->Platform;
         } else {
-            $this->log($game_id, 'error', 'no platform.');
+            $this->log(0, $game_id, 'error', 'no platform.');
             return false;
         }
 
 
         if (!in_array($game_platform, $this->supported_platforms)) {
-            $this->log($game_id, 'error', 'Platform ' . $game_platform . ' not supported.');
+            $this->log(0, $game_id, 'error', 'Platform ' . $game_platform . ' not supported.');
             return false;
         }
 
 
         /* check if game already exists */
-        if ($id = $this->post_exists_by_title(($game_title))) {
-            $this->log($id, 'notice', $game_title . ' already exists! Adding platform.');
-            $this->addTerms($id, $game_platform, 'platform');
+        if ($wpid = $this->post_exists_by_title(($game_title))) {
+            $this->log($wpid, $game_id, 'notice', $game_title . ' already exists! Adding platform.');
+            $this->addCustomField($wpid, 'tgdb_id', $game_id);
+            $this->addTerms($wpid, $game_platform, 'platform');
 
             return false;
         }
@@ -318,23 +328,22 @@ class MarcTVTGDBImporter
             'post_content' => '',
             'post_title' => $game_title,
             'post_date' => $release_date, //[ Y-m-d H:i:s ]
-            'import_id' => $game_id
         ));
 
         return $post_attributes;
     }
 
-    public function log($id = 0, $type, $msg = '')
+    public function log($wpid = 0, $tgdbid = 0, $type, $msg = '')
     {
-        $msg = $msg .' @'.  date("Y-m-d H:i:s");
+        $msg = $msg . ' TGDBID: '. $tgdbid .' @'.  date("Y-m-d H:i:s");
 
-        $this->writeLog($type . ': ' . 'id ' . $id . ' ' . $msg);
+        $this->writeLog($type . ': ' . 'id ' . $wpid . ' ' . $msg );
 
         if ($type != 'error') {
-            echo '<span class="tgdb-' . $type . '">' . $type . '</span><a href="' . get_site_url() . '/wp-admin/post.php?post=' . $id . '&action=edit">id ' . $id . '</a>: ' . $msg . '</br>';
+            echo '<span class="tgdb-' . $type . '">' . $type . '</span><a href="' . get_site_url() . '/wp-admin/post.php?post=' . $wpid . '&action=edit">id ' . $wpid . '</a>: ' . $msg . '</br>';
 
         } else {
-            echo '<span class="tgdb-' . $type . '">' . $type . '</span>id ' . $id . ': ' . $msg . '</br>';
+            echo '<span class="tgdb-' . $type . '">' . $type . '</span>id ' . $wpid . ': ' . $msg . '</br>';
 
         }
     }
@@ -347,8 +356,8 @@ class MarcTVTGDBImporter
 
             $this->addCustomField($wp_id, 'score_value', 0);
 
-            if ($wp_id != $post_attributes['import_id']) {
-                $this->log($wp_id, 'error', 'collusion');
+            if (isset($game->Game->id)) {
+                $this->addCustomField($wp_id, 'tgdb_id', $game->Game->id);
             }
 
             if (isset($game->Game->Developer)) {
@@ -391,7 +400,7 @@ class MarcTVTGDBImporter
                 $this->savePostImage($wp_id, $game, $post_attributes['post_title'], $post_attributes['post_date']);
             }
 
-            $this->log($wp_id, 'success', $post_attributes['post_title'] . ' has been created!');
+            $this->log($wp_id, $game->Game->id, 'success', $post_attributes['post_title'] . ' has been created!');
             return $wp_id;
 
         } else {
@@ -475,8 +484,7 @@ class MarcTVTGDBImporter
                 'post_parent' => $parent_post_id,
                 'post_title' => $title,
                 'post_content' => '',
-                'post_status' => 'inherit',
-                'import_id' => $parent_post_id + 5000000 //all attachment posts start with this. Any better idea to avoid collisions?
+                'post_status' => 'inherit'
             );
             $attachment_id = wp_insert_attachment($attachment, $upload_file['file'], $parent_post_id);
             if (!is_wp_error($attachment_id)) {
@@ -494,10 +502,10 @@ class MarcTVTGDBImporter
 
     }
 
-    public function addCustomField($wp_id, $label, $value = '')
+    public function addCustomField($wp_id, $key, $value = '')
     {
         if (isset ($value)) {
-            add_post_meta($wp_id, $label, $value, true) || update_post_meta($wp_id, $label, $value);
+            add_post_meta($wp_id, $key, $value) || update_post_meta($wp_id, $key, $value);
         }
     }
 
@@ -541,7 +549,6 @@ class MarcTVTGDBImporter
 
     public function prefix_setup_schedule()
     {
-
         if (!wp_next_scheduled('startGamesImport')) {
             wp_schedule_event(time(), 'twicedaily', 'startGamesImport');
         }
@@ -549,11 +556,11 @@ class MarcTVTGDBImporter
 
     public function updateGames()
     {
-
+        $this->log('','','notice','cron started');
         $games = $this->game_api->getUpdatedGames($this->updatedSeconds);
 
         foreach ($games->Game as $id) {
-            $this->createGame($id);
+            //$this->createGame($id);
         }
 
     }
@@ -561,14 +568,18 @@ class MarcTVTGDBImporter
     public function import($id, $limit = 0)
     {
         $games = $this->getGamesByPlatform($id);
+
         if (count($games->Game) > 0) {
             $i = 0;
             foreach ($games->Game as $game) {
+
                 $id = $game->id;
                 $this->createGame($id);
                 flush();
                 if (++$i == $limit) break;
             }
+        } else {
+            $this->log('','','error','thegamedb.net seems to be offline.');
         }
     }
 }
