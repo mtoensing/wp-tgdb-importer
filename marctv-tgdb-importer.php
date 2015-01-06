@@ -274,7 +274,7 @@ class MarcTVTGDBImporter
         if (isset ($game->Game->ReleaseDate)) {
             $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate) + 43200); // release date plus 12 hours.
         } else {
-            $this->log(0, $game_id, 'error', 'no release date.');
+            $this->log(0, $game_id, 'error', $game_title . ' has no release date.');
 
             return false;
         }
@@ -304,13 +304,13 @@ class MarcTVTGDBImporter
         if (isset($game->Game->Platform)) {
             $game_platform = $game->Game->Platform;
         } else {
-            $this->log(0, $game_id, 'error', 'no platform.');
+            $this->log(0, $game_id, 'error', $game_title . ' no platform.');
             return false;
         }
 
 
         if (!in_array($game_platform, $this->supported_platforms)) {
-            $this->log(0, $game_id, 'error', 'Platform ' . $game_platform . ' not supported.');
+            $this->log(0, $game_id, 'error', $game_title . ': Platform ' . $game_platform . ' not supported.');
             return false;
         }
 
@@ -320,6 +320,18 @@ class MarcTVTGDBImporter
             $this->log($wpid, $game_id, 'notice', $game_title . ' already exists! Adding platform.');
             $this->addCustomField($wpid, 'tgdb_id', $game_id);
             $this->addTerms($wpid, $game_platform, 'platform');
+
+            if (isset($game->Game->Developer)) {
+                $this->addTerms($wpid, $game->Game->Developer, 'developer');
+            }
+
+            if (isset($game->Game->Publisher)) {
+                $this->addTerms($wpid, $game->Game->Publisher, 'publisher');
+            }
+
+            if (isset($game->Game->Genres->genre)) {
+                $this->addTerms($wpid, $game->Game->Genres->genre, 'genre');
+            }
 
             return false;
         }
@@ -368,6 +380,10 @@ class MarcTVTGDBImporter
                 $this->addTerms($wp_id, $game->Game->Publisher, 'publisher');
             }
 
+            if (isset($game->Game->Genres->genre)) {
+                $this->addTerms($wp_id, $game->Game->Genres->genre, 'genre');
+            }
+
             if (isset($game->Game->ESRB)) {
                 $this->addCustomField($wp_id, 'ESRB', $game->Game->ESRB);
             }
@@ -386,10 +402,6 @@ class MarcTVTGDBImporter
 
             if (isset($game->Game->Overview)) {
                 $this->addCustomField($wp_id, 'Overview', $game->Game->Overview);
-            }
-
-            if (isset($game->Game->Genres->genre)) {
-                $this->addTerms($wp_id, $game->Game->Genres->genre, 'genre');
             }
 
             if (isset($game->Game->Platform)) {
@@ -557,11 +569,11 @@ class MarcTVTGDBImporter
     public function updateGames()
     {
         $this->log('','','notice','cron started');
-        $games = $this->game_api->getUpdatedGames($this->updatedSeconds);
+        //$games = $this->game_api->getUpdatedGames($this->updatedSeconds);
 
-        foreach ($games->Game as $id) {
+        //foreach ($games->Game as $id) {
             //$this->createGame($id);
-        }
+        //}
 
     }
 
