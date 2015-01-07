@@ -413,8 +413,10 @@ class MarcTVTGDBImporter
 
         $logmsg =  '<tr class="logline"><td class="tgdb-type tgdb-' . $type . '">' . $type . '</td> ' . '<td class="wpid">'.$id_link .'</td>'. '<td class="tgdbid">'.$tgdb_link .'</td>'.'<td>'. $msg .'</td><td>'. $timestamp . '</td></tr>';
 
-
-        echo $logmsg;
+        $screen = get_current_screen();
+        if($screen->id == 'settings_page_marctv-tgdb') {
+            echo $logmsg;
+        }
 
         self::writeLog($logmsg);
     }

@@ -14,6 +14,7 @@ if (!current_user_can('manage_options')) {
 
         table.tgdb-log {
             width: 100%;
+            font-family: monospace;
         }
         .tgdb-type  {
             font-weight: 700;
@@ -43,7 +44,7 @@ if (!current_user_can('manage_options')) {
         }
 
         td.wpid,td.tgdbid {
-            text-align: center;
+
         }
 
         .tgdb-error {
