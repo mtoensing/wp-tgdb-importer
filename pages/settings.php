@@ -11,14 +11,39 @@ if (!current_user_can('manage_options')) {
 <div id="wrap">
     <h1>The Game Database Importer</h1>
     <style type="text/css">
-        .tgdb-log span {
+
+        table.tgdb-log {
+            width: 100%;
+        }
+        .tgdb-type  {
             font-weight: 700;
-            background: #fff;
-            border-left: 4px solid #fff;
-            -webkit-box-shadow: 0 1px 1px 0 rgba(0,0,0,.1);
-            box-shadow: 0 1px 1px 0 rgba(0,0,0,.1);
-            margin: 5px 15px 2px;
-            padding: 1px 12px;
+        }
+
+        table.tgdb-log th {
+            text-align: left;
+            font-weight: 700;;
+            background: #333;
+            color: #fff;
+        }
+
+        table.tgdb-log tr:nth-child(even) {
+            background-color: #eee;
+        }
+        table.tgdb-log tr:nth-child(odd) {
+            background-color: #fff;
+        }
+        table.tgdb-log th {
+            color: white;
+            background-color: black;
+        }
+
+        table.tgdb-log td,
+        table.tgdb-log th {
+            padding: 0.3em 0.3em;
+        }
+
+        td.wpid,td.tgdbid {
+            text-align: center;
         }
 
         .tgdb-error {
@@ -55,9 +80,17 @@ if (!current_user_can('manage_options')) {
             };
 
             echo '<h2>Importing games from ' . $platform_title . ' (Limit ' . $limit . ')</h2>';
-            echo '<pre class="tgdb-log">';
+            echo '<table class="tgdb-log">';
+            echo '<tr>
+                <th>Type</th>
+                <th>WPID</th>
+                <th>TGDBID</th>
+                <th>Message</th>
+                <th>Timestamp</th>
+              </tr>';
+
             $this->import($search_term, $limit);
-            echo '</pre>';
+            echo '</table>';
         }
 
         ?>
@@ -68,7 +101,8 @@ if (!current_user_can('manage_options')) {
                 <td>
                     <p><input id="marctv-tgdb-limit"
                               name="marctv-tgdb-limit" <?php checked(get_option($this->pluginPrefix . '-limit'), 'on'); ?>
-                              type="checkbox"/> <label for="marctv-tgdb-limit">Limit the items of the import to 10</label>
+                              type="checkbox"/> <label for="marctv-tgdb-limit">Limit the items of the import to
+                            10</label>
                     </p>
                 </td>
             </tr>

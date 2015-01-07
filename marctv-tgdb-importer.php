@@ -325,7 +325,7 @@ class MarcTVTGDBImporter
         if (isset ($game->Game->ReleaseDate)) {
             $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate) + 43200); // release date plus 12 hours.
         } else {
-            $this->log ($game_title . ' has no release date.','error', 0, $game_id);
+            $this->log($game_title . ' has no release date.','error', 0, $game_id);
 
             return false;
         }
@@ -403,15 +403,15 @@ class MarcTVTGDBImporter
         $tgdb_link = '';
 
         if($tgdbid != 0) {
-            $tgdb_link = ' <a href="http://thegamesdb.net/api/GetGame.php?id=' . $tgdbid . '">TGDBID ' . $tgdbid . '</a> ';
+            $tgdb_link = '<a href="http://thegamesdb.net/api/GetGame.php?id=' . $tgdbid . '">G:' . $tgdbid . '</a> ';
         }
 
         if ($wpid != 0) {
-            $id_link = '<a href="' . get_site_url() . '/wp-admin/post.php?post=' . $wpid . '&action=edit">WPID ' . $wpid . '</a>: ';
+            $id_link = '<a href="' . get_site_url() . '/wp-admin/post.php?post=' . $wpid . '&action=edit">W:' . $wpid . '</a> ';
         }
 
 
-        $logmsg =  '<span class="tgdb-' . $type . '">' . $type . '</span>' . $id_link . $tgdb_link . $msg . $timestamp . '</br>';
+        $logmsg =  '<tr class="logline"><td class="tgdb-type tgdb-' . $type . '">' . $type . '</td> ' . '<td class="wpid">'.$id_link .'</td>'. '<td class="tgdbid">'.$tgdb_link .'</td>'.'<td>'. $msg .'</td><td>'. $timestamp . '</td></tr>';
 
 
         echo $logmsg;
