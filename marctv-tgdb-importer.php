@@ -4,7 +4,7 @@
 Plugin Name: MarcTV The GameDatabase Importer
 Plugin URI: http://marctv.de/blog/marctv-wordpress-plugins/
 Description:
-Version:  0.7
+Version:  0.9
 Author:  Marc Tönsing
 Author URI: marctv.de
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
