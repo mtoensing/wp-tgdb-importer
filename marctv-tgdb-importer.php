@@ -29,7 +29,7 @@ class MarcTVTGDBImporter
         'Sony PSP',
         'Sega Dreamcast',
         'Sega Master System',
-        'Sega Genesis',
+        'Sega Mega Drive',
         'NeoGeo',
         'Nintendo Game Boy',
         'Nintendo Game Boy Advance',
@@ -392,7 +392,7 @@ class MarcTVTGDBImporter
 
         /* check if image is present */
         if (!$this->isStringinArray($this->image_type, $this->getTreeLeaves($game->Game->Images))) {
-            $this->log('no ' . $this->image_type . ' image.', 'error', 0, $game_id);
+            $this->log($game_title . 'has no ' . $this->image_type . ' image.', 'error', 0, $game_id);
             return false;
         }
 
