@@ -93,15 +93,6 @@ class MarcTVTGDBImporter
         $class->log('dactivated');
     }
 
-    public static function get_instance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self;
-            self::load_files();
-        }
-        return self::$instance;
-    }
-
     public function initDataStructures()
     {
         // add_filter( 'pre_get_posts', array($this, 'my_get_posts' ));
@@ -212,18 +203,12 @@ class MarcTVTGDBImporter
 
     public function tgdb_import_menu()
     {
-        $hook_suffix = add_options_page('TGDB Import', 'TGDB Import', 'manage_options', $this->pluginPrefix, array($this, 'tgdb_import_options'));
-        //add_action('admin_head-' . $hook_suffix, array($this, 'tgdb_admin_head'));
+        add_options_page('TGDB Import', 'TGDB Import', 'manage_options', $this->pluginPrefix, array($this, 'tgdb_import_options'));
     }
 
     public function tgdb_import_options()
     {
         require_once('pages/settings.php');
-    }
-
-    public function tgdb_admin_head()
-    {
-        //wp_enqueue_style($this->pluginPrefix . '_style', $this->pluginUrl . "/marctv-tgdb.css", '', $this->version);
     }
 
     private function post_exists($id)
@@ -271,10 +256,11 @@ class MarcTVTGDBImporter
         foreach ($platforms->Platforms->Platform as $platform) {
             if ($platform->id == get_option($this->pluginPrefix . '-platform')) {
                 $platform_title = $platform->name;
+                return $platform_title;
             }
         }
 
-        return $platform_title;
+        return false;
     }
 
     public function getPlatforms()
