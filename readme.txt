@@ -1,9 +1,9 @@
 === MarcTV TheGameDataBase Importer ===
 Contributors:  MarcDK
-Tags: tgdb, shortscore, API
+Tags: tgdb, shortscore, API, TheGameDB
 Requires at least: 3.0
 Tested up to: 4.1
-Stable tag: 0.7
+Stable tag: 0.9
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,16 +11,25 @@ Imports games from TheGameDatabase API as "game" post types.
 
 == Description ==
 
-Imports games from TheGameDatabase API as "game" post types.
+Uses TheGameDB API to generate custom post type 'game' and save them to Wordpress with taxonomies and custom fields.
+Implements a wp cron to pull for updates.
 
 = Features =
 
 
 == Changelog ==
 
+= 0.9 =
+
+* commented code
+
 = 0.8 =
 
-Publisher and Developer as taxonomy.
+* wp cron for api updates
+* publisher and peveloper as taxonomy.
+* much better id handling.
+* better looking import menu.
+* smarter logging.
 
 = 0.7 =
 
@@ -61,4 +70,4 @@ update method for new content for the same game
 
 * Imports some games as game post types with title, body, publisher, developer as drafts
 * Imports platform taxonomy terms with a check if they are already present.
-* check if tgdb id is already present.
+* Check if tgdb id is already present.

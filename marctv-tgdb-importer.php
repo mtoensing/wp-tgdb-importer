@@ -47,12 +47,15 @@ class MarcTVTGDBImporter
     private $post_defaults = '';
     private $post_type = 'game';
     private $game_api;
-    private $instance;
 
+    /**
+     *
+     */
     public function __construct()
     {
         $this->pluginUrl = plugins_url(false, __FILE__);
 
+        // post defaults for new games post types
         $this->post_defaults = array(
             'post_status' => 'publish',
             'post_type' => $this->post_type,
@@ -65,37 +68,23 @@ class MarcTVTGDBImporter
             'post_excerpt' => ''
         );
 
+        // get instance of GameDB API
         $this->game_api = new gameDB();
 
         $this->initDataStructures();
 
         $this->initBackend();
 
+        // add wp cron for updates
         $this->addCron();
     }
 
+
     /**
-     * Aktion bei der Aktivierung des Plugins
-     *
-     * @since   0.1
-     * @change  2.4
+     * register taxonomies, post type etc.
      */
-
-    public static function activated()
-    {
-        $class = new MarcTVTGDBImporter();
-        $class->log('activated');
-    }
-
-    public static function deactivated()
-    {
-        $class = new MarcTVTGDBImporter();
-        $class->log('dactivated');
-    }
-
     public function initDataStructures()
     {
-        // add_filter( 'pre_get_posts', array($this, 'my_get_posts' ));
         add_action('init', array($this, 'create_post_type_game'));
         add_action('init', array($this, 'create_platform_taxonomy'));
         add_action('init', array($this, 'create_genre_taxonomy'));
@@ -103,6 +92,9 @@ class MarcTVTGDBImporter
         add_action('init', array($this, 'create_publisher_taxonomy'));
     }
 
+    /**
+     *
+     */
     public function create_post_type_game()
     {
         register_post_type('game',
@@ -121,6 +113,9 @@ class MarcTVTGDBImporter
     }
 
 
+    /**
+     *
+     */
     public function create_genre_taxonomy()
     {
         // create a new taxonomy
@@ -136,6 +131,9 @@ class MarcTVTGDBImporter
         );
     }
 
+    /**
+     *
+     */
     public function create_publisher_taxonomy()
     {
         // create a new taxonomy
@@ -151,6 +149,9 @@ class MarcTVTGDBImporter
         );
     }
 
+    /**
+     *
+     */
     public function create_developer_taxonomy()
     {
         // create a new taxonomy
@@ -166,6 +167,9 @@ class MarcTVTGDBImporter
         );
     }
 
+    /**
+     *
+     */
     public function create_platform_taxonomy()
     {
         // create a new taxonomy
@@ -184,6 +188,9 @@ class MarcTVTGDBImporter
     }
 
 
+    /**
+     *
+     */
     public function initBackend()
     {
         add_action('admin_menu', array($this, 'tgdb_import_menu'));
@@ -201,21 +208,37 @@ class MarcTVTGDBImporter
 
     }
 
+    /**
+     * add settings pages
+     */
     public function tgdb_import_menu()
     {
         add_options_page('TGDB Import', 'TGDB Import', 'manage_options', $this->pluginPrefix, array($this, 'tgdb_import_options'));
     }
 
+    /**
+     * include settings page
+     */
     public function tgdb_import_options()
     {
         require_once('pages/settings.php');
     }
 
+    /**
+     * Check if post id exists
+     * @param $id
+     * @return bool
+     */
     private function post_exists($id)
     {
         return is_string(get_post_status($id));
     }
 
+    /**
+     * Does a post exist by title
+     * @param $title_str
+     * @return bool
+     */
     private function post_exists_by_title($title_str)
     {
         global $wpdb;
@@ -229,6 +252,11 @@ class MarcTVTGDBImporter
         }
     }
 
+    /**
+     * create a game and write it to the db
+     * @param $id
+     * @return bool|int|WP_Error
+     */
     public function createGame($id)
     {
         $game = $this->game_api->getGame($id);
@@ -242,7 +270,13 @@ class MarcTVTGDBImporter
         return false;
     }
 
-    public function contains($str, array $arr)
+    /**
+     * Is this string in an array
+     * @param $str
+     * @param array $arr
+     * @return bool
+     */
+    public function isStringinArray($str, array $arr)
     {
         foreach ($arr as $a) {
             if (strpos($a, $str) !== false) return true;
@@ -251,6 +285,11 @@ class MarcTVTGDBImporter
         return false;
     }
 
+    /**
+     * get platform title from options
+     * @param $platforms
+     * @return bool
+     */
     public function getPlatformTitle($platforms)
     {
         foreach ($platforms->Platforms->Platform as $platform) {
@@ -263,6 +302,10 @@ class MarcTVTGDBImporter
         return false;
     }
 
+    /**
+     * Get array of platform from cache or api
+     * @return array|mixed
+     */
     public function getPlatforms()
     {
         // Get any existing copy of our transient data
@@ -282,6 +325,10 @@ class MarcTVTGDBImporter
         return $platforms;
     }
 
+    /**
+     * write to local log file
+     * @param $msg
+     */
     private function writeLog($msg)
     {
         $upload_dir = wp_upload_dir();
@@ -292,6 +339,14 @@ class MarcTVTGDBImporter
     }
 
 
+    /**
+     *
+     * get the post attributes with checks for each game.
+     * returns false if game is not valid
+     *
+     * @param $game
+     * @return array|bool
+     */
     public function getPostAttributes($game)
     {
         if (isset($game->Game->id)) {
@@ -328,12 +383,15 @@ class MarcTVTGDBImporter
         }
 
         if ($query->have_posts()) {
+            if(empty($wpid)){
+                $wpid = 1;
+            }
             $this->log($game_title . ' already exists.','notice' , $wpid, $game_id );
             return false;
         }
 
         /* check if image is present */
-        if (!$this->contains($this->image_type, $this->getTreeLeaves($game->Game->Images))) {
+        if (!$this->isStringinArray($this->image_type, $this->getTreeLeaves($game->Game->Images))) {
             $this->log('no ' . $this->image_type . ' image.', 'error', 0, $game_id);
             return false;
         }
@@ -382,6 +440,14 @@ class MarcTVTGDBImporter
         return $post_attributes;
     }
 
+    /**
+     * write messages to admin screen and logs if not cron
+     *
+     * @param string $msg
+     * @param string $type
+     * @param int $wpid
+     * @param int $tgdbid
+     */
     public function log($msg = '',  $type = 'notice', $wpid = 0, $tgdbid = 0 )
     {
         $timestamp = ' @'. date("Y-m-d H:i:s");
@@ -399,14 +465,20 @@ class MarcTVTGDBImporter
 
         $logmsg =  '<tr class="logline"><td class="tgdb-type tgdb-' . $type . '">' . $type . '</td> ' . '<td class="wpid">'.$id_link .'</td>'. '<td class="tgdbid">'.$tgdb_link .'</td>'.'<td>'. $msg .'</td><td>'. $timestamp . '</td></tr>';
 
-        $screen = get_current_screen();
-        if($screen->id == 'settings_page_marctv-tgdb') {
+        if(function_exists('get_current_screen')){
             echo $logmsg;
         }
 
-        self::writeLog($logmsg);
+        $this->writeLog($logmsg);
     }
 
+    /**
+     * insert game into wordpress db.
+     *
+     * @param $game
+     * @param $post_attributes
+     * @return bool|int|WP_Error
+     */
     public function insertGame($game, $post_attributes)
     {
 
@@ -471,6 +543,12 @@ class MarcTVTGDBImporter
     }
 
 
+    /**
+     *
+     * dump stuff with pre tags.
+     * helper function
+     * @param $stuff
+     */
     private function dump($stuff)
     {
         echo '<pre>';
@@ -478,6 +556,13 @@ class MarcTVTGDBImporter
         echo '</pre>';
     }
 
+    /**
+     *
+     * returns all children als strings of an object tree in an single dimensional array
+     *
+     * @param $object
+     * @return array
+     */
     public function getTreeLeaves($object)
     {
         $return = array();
@@ -496,6 +581,14 @@ class MarcTVTGDBImporter
         return $return;
     }
 
+    /**
+     * checks if string is somewhere in an array.
+     *
+     * @param $haystack
+     * @param array $needles
+     * @param int $offset
+     * @return bool|mixed
+     */
     public function strposa($haystack, $needles = array(), $offset = 0)
     {
         $chr = array();
@@ -507,6 +600,15 @@ class MarcTVTGDBImporter
         return min($chr);
     }
 
+    /**
+     * save an image to a post
+     *
+     * @param $wp_id
+     * @param $game
+     * @param $title
+     * @param $release_date
+     * @return bool|int
+     */
     public function savePostImage($wp_id, $game, $title, $release_date)
     {
         $image_urls = $this->getTreeLeaves($game->Game->Images);
@@ -527,6 +629,16 @@ class MarcTVTGDBImporter
     }
 
 
+    /**
+     * saves an image url as an attachment.
+     * return the attachment id if successful.
+     *
+     * @param $wp_id
+     * @param $url
+     * @param $title
+     * @param null $time
+     * @return bool|int
+     */
     public function saveURLtoPostThumbnail($wp_id, $url, $title, $time = null)
     {
         $parent_post_id = $wp_id;
@@ -561,6 +673,13 @@ class MarcTVTGDBImporter
 
     }
 
+    /**
+     * Adds a custom field to a post id.
+     *
+     * @param $wp_id
+     * @param $key
+     * @param string $value
+     */
     public function addCustomField($wp_id, $key, $value = '')
     {
         if (isset ($value)) {
@@ -568,6 +687,13 @@ class MarcTVTGDBImporter
         }
     }
 
+    /**
+     * Adds a term to a taxonomy
+     *
+     * @param $wp_id
+     * @param $term_obj
+     * @param $taxonomy_string
+     */
     public function addTerms($wp_id, $term_obj, $taxonomy_string)
     {
 
@@ -583,14 +709,12 @@ class MarcTVTGDBImporter
         }
     }
 
-    public function searchGamesByName($name)
-    {
-        $games = $this->game_api->getGamesList($name);
-
-        return $games;
-
-    }
-
+    /**
+     * retrieve games by platform id
+     *
+     * @param $id
+     * @return array|mixed
+     */
     public function getGamesByPlatform($id)
     {
         $games = $this->game_api->getPlatformGames($id);
@@ -598,32 +722,48 @@ class MarcTVTGDBImporter
         return $games;
     }
 
+    /**
+     * adds the wp cron event.
+     */
     public function addCron()
     {
-
         add_action('wp', array($this, 'prefix_setup_schedule'));
-        add_action('games_import', array($this, 'updateGames'));
+        add_action('games_import', array($this, 'tgdb_import_updates'));
     }
 
+    /**
+     * check if cron action is already scheduled.
+     */
     public function prefix_setup_schedule()
     {
-
         if (!wp_next_scheduled('games_import')) {
-            wp_schedule_event(time(), 'hourly', 'games_import');
+            wp_schedule_event(time(), 'twicedaily', 'games_import');
         }
     }
 
-    public function updateGames()
+    /**
+     * get updated games from api and write them to database.
+     * initiated by wp cron.
+     */
+    public function tgdb_import_updates()
     {
-        self::$instance = new self;
-        $this->log('cron started', 'notice');
+        $this->log('cron: started.', 'notice');
         $games = $this->game_api->getUpdatedGames($this->updatedSeconds);
 
-        foreach ($games->Game as $id) {
-            $this->createGame($id);
+        if (isset($games->Game)) {
+            foreach ($games->Game as $id) {
+                $this->createGame($id);
+            }
+        } else {
+            $this->log('cron: no new game updates.', 'notice');
         }
     }
 
+    /**
+     * Import games by platform id
+     * @param $id
+     * @param int $limit
+     */
     public function import($id, $limit = 0)
     {
         $games = $this->getGamesByPlatform($id);
@@ -648,6 +788,3 @@ class MarcTVTGDBImporter
  * Initialize plugin.
  */
 new MarcTVTGDBImporter();
-
-register_activation_hook(__FILE__, array('MarcTVTGDBImporter', 'activated'));
-register_deactivation_hook(__FILE__, array('MarcTVTGDBImporter', 'deactivated'));
