@@ -262,7 +262,7 @@ class MarcTVTGDBImporter
         $game_data = $this->game_api->getGame($id);
 
         if ($post_attributes = $this->getPostAttributes($game_data)) {
-            if ($wp_id = $this->insertGame($game, $post_attributes)) {
+            if ($wp_id = $this->insertGame($game_data, $post_attributes)) {
 
                 return $wp_id;
             }
@@ -339,6 +339,12 @@ class MarcTVTGDBImporter
         file_put_contents($file, strip_tags($msg) . PHP_EOL, FILE_APPEND);
     }
 
+    private function validateDate($date)
+    {
+        $d = DateTime::createFromFormat('m/d/Y', $date);
+        return $d && $d->format('m/d/Y') == $date;
+    }
+
 
     /**
      *
@@ -365,7 +371,13 @@ class MarcTVTGDBImporter
         }
 
         if (isset($game->Game->ReleaseDate)) {
-            $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate) + 43200); // release date plus 12 hours.
+            if ($this->validateDate($game->Game->ReleaseDate)){
+                $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate) + 43200); // release date plus 12 hours.
+            } else {
+                $this->log($game_title . ' wrong release date format.', 'error', 0, $game_id);
+
+                return false;
+            }
         } else {
             $this->log($game_title . ' has no release date.', 'error', 0, $game_id);
 
@@ -468,7 +480,7 @@ class MarcTVTGDBImporter
 
         if (function_exists('get_current_screen')) {
             $screen = get_current_screen();
-            if($screen->base == 'settings_page_marctv-tgdb'){
+            if ($screen->base == 'settings_page_marctv-tgdb') {
                 echo $logmsg;
             }
         }
