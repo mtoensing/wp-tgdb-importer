@@ -259,10 +259,11 @@ class MarcTVTGDBImporter
      */
     public function createGame($id)
     {
-        $game = $this->game_api->getGame($id);
+        $game_data = $this->game_api->getGame($id);
 
-        if ($post_attributes = $this->getPostAttributes($game)) {
+        if ($post_attributes = $this->getPostAttributes($game_data)) {
             if ($wp_id = $this->insertGame($game, $post_attributes)) {
+
                 return $wp_id;
             }
         }
@@ -352,21 +353,21 @@ class MarcTVTGDBImporter
         if (isset($game->Game->id)) {
             $game_id = $game->Game->id;
         } else {
-            $this->log('no id.','error');
+            $this->log('no id.', 'error');
             return false;
         }
 
-        if (isset ($game->Game->GameTitle)) {
+        if (isset($game->Game->GameTitle)) {
             $game_title = $game->Game->GameTitle;
         } else {
-            $this->log('no title.','error' ,0 , $game_id );
+            $this->log('no title.', 'error', 0, $game_id);
             return false;
         }
 
-        if (isset ($game->Game->ReleaseDate)) {
+        if (isset($game->Game->ReleaseDate)) {
             $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate) + 43200); // release date plus 12 hours.
         } else {
-            $this->log($game_title . ' has no release date.','error', 0, $game_id);
+            $this->log($game_title . ' has no release date.', 'error', 0, $game_id);
 
             return false;
         }
@@ -383,10 +384,10 @@ class MarcTVTGDBImporter
         }
 
         if ($query->have_posts()) {
-            if(empty($wpid)){
+            if (empty($wpid)) {
                 $wpid = 1;
             }
-            $this->log($game_title . ' already exists.','notice' , $wpid, $game_id );
+            $this->log($game_title . ' already exists.', 'notice', $wpid, $game_id);
             return false;
         }
 
@@ -399,20 +400,20 @@ class MarcTVTGDBImporter
         if (isset($game->Game->Platform)) {
             $game_platform = $game->Game->Platform;
         } else {
-            $this->log($game_title . ' no platform.','error', 0, $game_id);
+            $this->log($game_title . ' no platform.', 'error', 0, $game_id);
             return false;
         }
 
 
         if (!in_array($game_platform, $this->supported_platforms)) {
-            $this->log($game_title . ': Platform ' . $game_platform . ' not supported.','error',0, $game_id);
+            $this->log($game_title . ': Platform ' . $game_platform . ' not supported.', 'error', 0, $game_id);
             return false;
         }
 
 
         /* check if game already exists */
         if ($wpid = $this->post_exists_by_title(($game_title))) {
-            $this->log($game_title . ' already exists! Adding platform.','notice', $wpid, $game_id);
+            $this->log($game_title . ' already exists! Adding platform.', 'notice', $wpid, $game_id);
             $this->addCustomField($wpid, 'tgdb_id', $game_id);
             $this->addTerms($wpid, $game_platform, 'platform');
 
@@ -448,13 +449,13 @@ class MarcTVTGDBImporter
      * @param int $wpid
      * @param int $tgdbid
      */
-    public function log($msg = '',  $type = 'notice', $wpid = 0, $tgdbid = 0 )
+    public function log($msg = '', $type = 'notice', $wpid = 0, $tgdbid = 0)
     {
-        $timestamp = ' @'. date("Y-m-d H:i:s");
+        $timestamp = ' @' . date("Y-m-d H:i:s");
         $id_link = '';
         $tgdb_link = '';
 
-        if($tgdbid != 0) {
+        if ($tgdbid != 0) {
             $tgdb_link = '<a href="http://thegamesdb.net/api/GetGame.php?id=' . $tgdbid . '">G:' . $tgdbid . '</a> ';
         }
 
@@ -463,10 +464,13 @@ class MarcTVTGDBImporter
         }
 
 
-        $logmsg =  '<tr class="logline"><td class="tgdb-type tgdb-' . $type . '">' . $type . '</td> ' . '<td class="wpid">'.$id_link .'</td>'. '<td class="tgdbid">'.$tgdb_link .'</td>'.'<td>'. $msg .'</td><td>'. $timestamp . '</td></tr>';
+        $logmsg = '<tr class="logline"><td class="tgdb-type tgdb-' . $type . '">' . $type . '</td> ' . '<td class="wpid">' . $id_link . '</td>' . '<td class="tgdbid">' . $tgdb_link . '</td>' . '<td>' . $msg . '</td><td>' . $timestamp . '</td></tr>';
 
-        if(function_exists('get_current_screen')){
-            echo $logmsg;
+        if (function_exists('get_current_screen')) {
+            $screen = get_current_screen();
+            if($screen->base == 'settings_page_marctv-tgdb'){
+                echo $logmsg;
+            }
         }
 
         $this->writeLog($logmsg);
@@ -531,7 +535,7 @@ class MarcTVTGDBImporter
                 $this->savePostImage($wp_id, $game, $post_attributes['post_title'], $post_attributes['post_date']);
             }
 
-            $this->log($post_attributes['post_title'] . ' has been created!', 'success', $wp_id, $game->Game->id );
+            $this->log($post_attributes['post_title'] . ' has been created!', 'success', $wp_id, $game->Game->id);
             return $wp_id;
 
         } else {
@@ -778,7 +782,7 @@ class MarcTVTGDBImporter
                 if (++$i == $limit) break;
             }
         } else {
-            $this->log('thegamedb.net seems to be offline.','error');
+            $this->log('thegamedb.net seems to be offline.', 'error');
         }
     }
 }
