@@ -30,6 +30,7 @@ class MarcTVTGDBImporter
         'Sony Playstation Vita',
         'Sony PSP',
         'Sega Dreamcast',
+        'Sega Game Gear',
         'Sega Master System',
         'Sega Mega Drive',
         'Sega Saturn',
