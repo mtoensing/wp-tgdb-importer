@@ -16,7 +16,8 @@ if (!current_user_can('manage_options')) {
             width: 100%;
             font-family: monospace;
         }
-        .tgdb-type  {
+
+        .tgdb-type {
             font-weight: 700;
         }
 
@@ -30,9 +31,11 @@ if (!current_user_can('manage_options')) {
         table.tgdb-log tr:nth-child(even) {
             background-color: #eee;
         }
+
         table.tgdb-log tr:nth-child(odd) {
             background-color: #fff;
         }
+
         table.tgdb-log th {
             color: white;
             background-color: black;
@@ -43,7 +46,7 @@ if (!current_user_can('manage_options')) {
             padding: 0.3em 0.3em;
         }
 
-        td.wpid,td.tgdbid {
+        td.wpid, td.tgdbid {
 
         }
 
@@ -121,7 +124,7 @@ if (!current_user_can('manage_options')) {
                         </select>
                     </p>
                     <p><label for="marctv-tgdb-platform">
-                            <?php echo __('Select a platform.', 'marctv-galleria'); ?>
+                            <?php echo __('Select a platform. Supported platforms are defined in class attributes.', 'marctv-galleria'); ?>
                         </label></p>
                     </fieldset>
 

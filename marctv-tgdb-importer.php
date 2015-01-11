@@ -320,6 +320,14 @@ class MarcTVTGDBImporter
             $json = json_encode($xmlbody);
             $platforms = json_decode($json);
 
+            $i = 0;
+            foreach ($platforms->Platforms->Platform as $platform) {
+                if (!in_array($platform->name, $this->supported_platforms)) {
+                    unset($platforms->Platforms->Platform[$i]);
+                }
+                $i++;
+            }
+
             set_transient('marctv-tgdb-plattforms', $platforms, 48 * HOUR_IN_SECONDS);
         }
 
@@ -371,7 +379,7 @@ class MarcTVTGDBImporter
         }
 
         if (isset($game->Game->ReleaseDate)) {
-            if ($this->validateDate($game->Game->ReleaseDate)){
+            if ($this->validateDate($game->Game->ReleaseDate)) {
                 $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate) + 43200); // release date plus 12 hours.
             } else {
                 $this->log($game_title . ' wrong release date format.', 'error', 0, $game_id);
