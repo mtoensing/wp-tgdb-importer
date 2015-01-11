@@ -17,6 +17,8 @@ class MarcTVTGDBImporter
     private $pluginUrl = '';
     private $updatedSeconds = 86400;
     private $supported_platforms = array(
+        'Arcade',
+        'Amiga',
         'PC',
         'Microsoft Xbox One',
         'Microsoft Xbox 360',
@@ -30,6 +32,7 @@ class MarcTVTGDBImporter
         'Sega Dreamcast',
         'Sega Master System',
         'Sega Mega Drive',
+        'Sega Saturn',
         'NeoGeo',
         'Nintendo Game Boy',
         'Nintendo Game Boy Advance',
@@ -37,6 +40,7 @@ class MarcTVTGDBImporter
         'Nintendo DS',
         'Nintendo 3DS',
         'Super Nintendo (SNES)',
+        'Nintendo Entertainment System (NES)',
         'Nintendo 64',
         'Nintendo Wii',
         'Nintendo Wii U'
@@ -328,7 +332,7 @@ class MarcTVTGDBImporter
                 $i++;
             }
 
-            set_transient('marctv-tgdb-plattforms', $platforms, 48 * HOUR_IN_SECONDS);
+            set_transient('marctv-tgdb-plattforms', $platforms, 60);
         }
 
         return $platforms;
