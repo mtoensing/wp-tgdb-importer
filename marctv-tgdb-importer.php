@@ -15,10 +15,12 @@ require_once('classes/game-api.php');
 class MarcTVTGDBImporter
 {
     private $pluginUrl = '';
-    private $updatedSeconds = 86400;
+    private $updatedSeconds = 864000;
+    private $releaseDelaySeconds = 60;
     private $supported_platforms = array(
         'Arcade',
         'Amiga',
+        'Commodore 64',
         'PC',
         'Microsoft Xbox One',
         'Microsoft Xbox 360',
@@ -385,7 +387,7 @@ class MarcTVTGDBImporter
 
         if (isset($game->Game->ReleaseDate)) {
             if ($this->validateDate($game->Game->ReleaseDate)) {
-                $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate) + 43200); // release date plus 12 hours.
+                $release_date = date("Y-m-d H:i:s", strtotime($game->Game->ReleaseDate) + $this->releaseDelaySeconds); // release date plus 12 hours.
             } else {
                 $this->log($game_title . ' wrong release date format.', 'error', 0, $game_id);
 
