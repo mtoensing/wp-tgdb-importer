@@ -9,25 +9,26 @@
 
 class gameDB{
 
-    protected $apiUrl = 'http://thegamesdb.net/api/';
+    private $timeout = 30;
 
+    protected $apiUrl = 'http://thegamesdb.net/api/';
     protected $game;
 
     public function __construct(){
         // Set Plugin Path
         $this->pluginPath = dirname(__FILE__);
-     
+
         // Set Plugin URL
         $this->pluginUrl = WP_PLUGIN_URL . '/game-api';
-     
-        
+
+
     }
 
     private function convertXMLArray($xml){
         $xmlbody  = simplexml_load_string($xml);
         $json = json_encode($xmlbody);
         $array = json_decode($json);
-        
+
         return $array;
     }
 
@@ -47,12 +48,12 @@ class gameDB{
     /**
      * Get the games from TheGamesDB Api
      * @param  string $game string that contains the game title
-     * @return array       Return an xml->json based array that 
+     * @return array       Return an xml->json based array that
      *                     contains the data information provided
      *                     by the API
      */
     public function getGames($game){
-        $call = wp_remote_get($this->apiUrl . 'GetGame.php?name=' . $game);
+        $call = wp_remote_get($this->apiUrl . 'GetGame.php?name=' . $game, array( 'timeout' => $this->timeout, 'httpversion' => '1.1' ));
         $body = wp_remote_retrieve_body($call);
 
         return gameDB::convertXMLArray($body);
@@ -60,28 +61,28 @@ class gameDB{
     }
 
     public function getGamesList($game){
-        $call = wp_remote_get($this->apiUrl . 'GetGamesList.php?name=' . $game);
+        $call = wp_remote_get($this->apiUrl . 'GetGamesList.php?name=' . $game, array( 'timeout' => $this->timeout, 'httpversion' => '1.1' ));
         $body = wp_remote_retrieve_body($call);
 
         return gameDB::convertXMLArray($body);
     }
 
     public function getPlatformsList(){
-        $call = wp_remote_get($this->apiUrl . 'GetPlatformsList.php');
+        $call = wp_remote_get($this->apiUrl . 'GetPlatformsList.php', array( 'timeout' => $this->timeout, 'httpversion' => '1.1' ) );
         $body = wp_remote_retrieve_body($call);
 
         return gameDB::convertXMLArray($body);
     }
 
     public function getPlatformGames($id){
-        $call = wp_remote_get($this->apiUrl . 'GetPlatformGames.php?platform=' . $id);
+        $call = wp_remote_get($this->apiUrl . 'GetPlatformGames.php?platform=' . $id , array( 'timeout' => $this->timeout, 'httpversion' => '1.1' ));
         $body = wp_remote_retrieve_body($call);
 
         return gameDB::convertXMLArray($body);
     }
 
     public function getUpdatedGames($seconds){
-        $call = wp_remote_get($this->apiUrl . 'Updates.php?time=' . $seconds);
+        $call = wp_remote_get($this->apiUrl . 'Updates.php?time=' . $seconds, array( 'timeout' => $this->timeout, 'httpversion' => '1.1' ));
         $body = wp_remote_retrieve_body($call);
 
         return gameDB::convertXMLArray($body);
@@ -93,7 +94,7 @@ class gameDB{
      * @return array     Return the array containing every element.
      */
     public function getGame($id){
-        $call = wp_remote_get($this->apiUrl . 'GetGame.php?id=' . $id);
+        $call = wp_remote_get($this->apiUrl . 'GetGame.php?id=' . $id, array( 'timeout' => $this->timeout, 'httpversion' => '1.1' ));
         $body = wp_remote_retrieve_body($call);
 
         return gameDB::convertXMLArray($body);
@@ -104,7 +105,7 @@ class gameDB{
      * @return string     Return the spefic URL for the game art.
      */
     public function getBoxArt($id){
-        $call = wp_remote_get($this->apiUrl . 'GetArt.php?id=' . $id);
+        $call = wp_remote_get($this->apiUrl . 'GetArt.php?id=' . $id, array( 'timeout' => $this->timeout, 'httpversion' => '1.1' ));
         $body = wp_remote_retrieve_body($call);
 
         return gameDB::convertXMLArray($body);

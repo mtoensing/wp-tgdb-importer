@@ -1,12 +1,12 @@
 <?php
 
 /*
-Plugin Name: MarcTV The GameDatabase Importer
-Plugin URI: http://marctv.de/blog/marctv-wordpress-plugins/
+Plugin Name: The GameDatabase Importer
+Plugin URI: http://marc.tv/blog/marctv-wordpress-plugins/
 Description: Imports games from TheGameDatabase API as "game" post types.
-Version:  0.9
+Version:  1.0
 Author:  Marc Tönsing
-Author URI: marctv.de
+Author URI: marc.TV
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 */
 
@@ -15,12 +15,15 @@ require_once('classes/game-api.php');
 class MarcTVTGDBImporter
 {
     private $pluginUrl = '';
-    private $updatedSeconds = 864000;
+    private $updatedSeconds = 172800;
     private $releaseDelaySeconds = 60;
     private $supported_platforms = array(
+        '3DO',
+        'Android',
         'Arcade',
         'Amiga',
         'Commodore 64',
+        'iOS',
         'PC',
         'Microsoft Xbox One',
         'Microsoft Xbox 360',
@@ -97,6 +100,9 @@ class MarcTVTGDBImporter
         add_action('init', array($this, 'create_genre_taxonomy'));
         add_action('init', array($this, 'create_developer_taxonomy'));
         add_action('init', array($this, 'create_publisher_taxonomy'));
+        add_action('init', array($this, 'create_coop_taxonomy'));
+        add_action('init', array($this, 'create_players_taxonomy'));
+        add_action('init', array($this, 'create_fps_taxonomy'));
     }
 
     /**
@@ -114,7 +120,15 @@ class MarcTVTGDBImporter
                 'taxonomies' => array(),
                 'has_archive' => true,
                 'yarpp_support' => true,
-                'supports' => array('title', 'editor', 'thumbnail', 'comments', 'custom-fields', 'post-formats')
+                'supports' => array(
+                    'title',
+                    'auhor',
+                    'editor',
+                    'publicize',
+                    'thumbnail',
+                    'comments',
+                    'custom-fields',
+                    'post-formats')
             )
         );
     }
@@ -177,6 +191,39 @@ class MarcTVTGDBImporter
     /**
      *
      */
+    public function create_fps_taxonomy()
+    {
+        // create a new taxonomy
+        register_taxonomy(
+            'fps',
+            $this->post_type,
+            array(
+                'label' => __('FPS'),
+                'rewrite' => array(
+                    'slug' => 'fps'
+                ),
+            )
+        );
+    }
+
+    public function create_taxonomy($name)
+    {
+        // create a new taxonomy
+        register_taxonomy(
+            strtolower($name),
+            $this->post_type,
+            array(
+                'label' => __($name),
+                'rewrite' => array(
+                    'slug' => strtolower($name)
+                ),
+            )
+        );
+    }
+
+    /**
+     *
+     */
     public function create_platform_taxonomy()
     {
         // create a new taxonomy
@@ -188,6 +235,46 @@ class MarcTVTGDBImporter
                 'rewrite' => array(
                     'slug' => 'platform',
                     'hierarchical' => true
+                ),
+
+            )
+        );
+    }
+
+    /**
+     *
+     */
+    public function create_coop_taxonomy()
+    {
+        // create a new taxonomy
+        register_taxonomy(
+            'coop',
+            $this->post_type,
+            array(
+                'label' => __('Co-op'),
+                'rewrite' => array(
+                    'slug' => 'coop',
+                    'hierarchical' => false
+                ),
+
+            )
+        );
+    }
+
+    /**
+     *
+     */
+    public function create_players_taxonomy()
+    {
+        // create a new taxonomy
+        register_taxonomy(
+            'players',
+            $this->post_type,
+            array(
+                'label' => __('Players'),
+                'rewrite' => array(
+                    'slug' => 'players',
+                    'hierarchical' => false
                 ),
 
             )
@@ -212,6 +299,8 @@ class MarcTVTGDBImporter
         register_setting($this->pluginPrefix . '-settings-group', $this->pluginPrefix . '-platform');
         register_setting($this->pluginPrefix . '-settings-group', $this->pluginPrefix . '-limit');
         register_setting($this->pluginPrefix . '-settings-group', $this->pluginPrefix . '-startimport');
+        register_setting($this->pluginPrefix . '-settings-group', $this->pluginPrefix . '-startcsvimport');
+
 
     }
 
@@ -360,7 +449,6 @@ class MarcTVTGDBImporter
         return $d && $d->format('m/d/Y') == $date;
     }
 
-
     /**
      *
      * get the post attributes with checks for each game.
@@ -431,12 +519,10 @@ class MarcTVTGDBImporter
             return false;
         }
 
-
         if (!in_array($game_platform, $this->supported_platforms)) {
             $this->log($game_title . ': Platform ' . $game_platform . ' not supported.', 'error', 0, $game_id);
             return false;
         }
-
 
         /* check if game already exists */
         if ($wpid = $this->post_exists_by_title(($game_title))) {
@@ -543,11 +629,11 @@ class MarcTVTGDBImporter
             }
 
             if (isset($game->Game->{'Co-op'})) {
-                $this->addCustomField($wp_id, 'Co-op', $game->Game->{'Co-op'});
+                $this->addTerms($wp_id, $game->Game->{'Co-op'}, 'coop');
             }
 
             if (isset($game->Game->Players)) {
-                $this->addCustomField($wp_id, 'Players', $game->Game->Players);
+                $this->addTerms($wp_id, $game->Game->Players, 'players');
             }
 
             if (isset($game->Game->Overview)) {
@@ -585,6 +671,84 @@ class MarcTVTGDBImporter
         echo '<pre>';
         var_dump($stuff);
         echo '</pre>';
+    }
+
+    public function importCSV($array, $write = false)
+    {
+        $markup = '<table class="tgdb-log">';
+        $tax = array();
+        $r = 0;
+        $logline = '';
+        foreach ($array as $row) {
+
+            $markup .= "<tr>";
+
+            $c = 0;
+            $title = '';
+            foreach ($row as $column) {
+
+                if ($c == 0) {
+                    $id = $this->post_exists_by_title($column);
+                    $title = $column;
+                }
+
+                if ($r == 0) {
+                    $markup .= "<th>";
+                } else {
+                    if ($id > 0) {
+                        $markup .= '<td class="in">';
+                    } else {
+                        $markup .= "<td>";
+                    }
+                }
+
+                if ($r == 0 && $c > 0) {
+                    $tax[] = $column;
+                }
+
+                $markup .= $column;
+                if ($id > 0 && $c > 0 && $r > 0) {
+                    $taxonomy = $tax[$c - 1];
+                    $value = $column;
+
+                    if(taxonomy_exists($taxonomy) ){
+                        if($value != ''){
+                            $logline .= 'Adding taxonomy <strong>' . $tax[$c - 1] . '</strong> with value "<em>' . $value . '</em>" to <a href="/wp-admin/post.php?post=' . $id . '&action=edit">' . $title . '</a></br>';
+
+                            if ($write == true) {
+                                $this->addTerms($id, $value, $tax[$c - 1]);
+                            }
+
+                        } else {
+                            $logline .= 'Value is empty.</br>';
+                        }
+
+                    } else {
+                        $logline .= 'Taxonomy: <strong>' . $taxonomy . '</strong> does not exists! </br>';
+                    }
+
+                }
+
+                if ($r == 0) {
+                    $markup .= "</th>";
+                } else {
+                    $markup .= "</td>";
+                }
+                $c++;
+            }
+            $r++;
+            $markup .= "</tr>";
+        }
+        $markup .= "</table>";
+        $markup .= "<pre>" . $logline . "</pre>";
+
+        if ($write != true) {
+            echo "<h3><strong>Nothing written! Check write to database option.</strong></h3>";
+        } else {
+            echo "<h3><strong>Changes saved to database!</strong></h3>";
+        }
+
+        return $markup;
     }
 
     /**
@@ -811,6 +975,21 @@ class MarcTVTGDBImporter
         } else {
             $this->log('thegamedb.net seems to be offline.', 'error');
         }
+    }
+
+    public function get2DArrayFromCsv($file, $delimiter)
+    {
+        if (($handle = fopen($file, "r")) !== FALSE) {
+            $i = 0;
+            while (($lineArray = fgetcsv($handle, 4000, $delimiter)) !== FALSE) {
+                for ($j = 0; $j < count($lineArray); $j++) {
+                    $data2DArray[$i][$j] = $lineArray[$j];
+                }
+                $i++;
+            }
+            fclose($handle);
+        }
+        return $data2DArray;
     }
 }
 
