@@ -4,10 +4,11 @@
 Plugin Name: The GameDatabase Importer
 Plugin URI: http://marc.tv/blog/marctv-wordpress-plugins/
 Description: Imports games from TheGameDatabase API as "game" post types.
-Version:  1.0
+Version:  1.1
 Author:  Marc Tönsing
 Author URI: marc.TV
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
+GitHub Plugin URI: mtoensing/wp-tgdb-importer
 */
 
 require_once('classes/game-api.php');
@@ -49,7 +50,8 @@ class MarcTVTGDBImporter
         'Nintendo Entertainment System (NES)',
         'Nintendo 64',
         'Nintendo Wii',
-        'Nintendo Wii U'
+        'Nintendo Wii U',
+        'Nintendo Wii Switch'
     );
     private $image_type = 'front';
     private $pluginPrefix = 'marctv-tgdb';
