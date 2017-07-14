@@ -4,9 +4,9 @@
 Plugin Name: The GameDatabase Importer
 Plugin URI: http://marc.tv/blog/marctv-wordpress-plugins/
 Description: Imports games from TheGameDatabase API as "game" post types.
-Version:  1.2
+Version:  1.3
 Author:  Marc Tönsing
-Author URI: marc.TV
+Author URI: https://marc.tv
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 GitHub Plugin URI: mtoensing/wp-tgdb-importer
 */
@@ -122,6 +122,7 @@ class MarcTVTGDBImporter
                 'taxonomies' => array(),
                 'has_archive' => true,
                 'yarpp_support' => true,
+                'show_in_rest' => true,
                 'supports' => array(
                     'title',
                     'auhor',
