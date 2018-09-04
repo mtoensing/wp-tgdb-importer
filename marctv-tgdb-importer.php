@@ -18,6 +18,7 @@ class MarcTVTGDBImporter
     private $pluginUrl = '';
     private $updatedSeconds = 172800;
     private $releaseDelaySeconds = 60;
+    private $apiURL = 'http://legacy.thegamesdb.net/api/';
     private $supported_platforms = array(
         '3DO',
         'Android',
@@ -413,7 +414,7 @@ class MarcTVTGDBImporter
         if (false === ($platforms = get_transient('marctv-tgdb-plattforms'))) {
             // It wasn't there, so regenerate the data and save the transient
 
-            $call = wp_remote_get('http://thegamesdb.net/api/GetPlatformsList.php');
+            $call = wp_remote_get($this->apiURL . 'GetPlatformsList.php');
             $body = wp_remote_retrieve_body($call);
 
             $xmlbody = simplexml_load_string($body);
@@ -573,7 +574,7 @@ class MarcTVTGDBImporter
         $tgdb_link = '';
 
         if ($tgdbid != 0) {
-            $tgdb_link = '<a href="http://thegamesdb.net/api/GetGame.php?id=' . $tgdbid . '">G:' . $tgdbid . '</a> ';
+            $tgdb_link = '<a href="' . $this->apiURL . ' . GetGame.php?id=' . $tgdbid . '">G:' . $tgdbid . '</a> ';
         }
 
         if ($wpid != 0) {
