@@ -4,7 +4,7 @@
 Plugin Name: The GameDatabase Importer
 Plugin URI: http://marc.tv/blog/marctv-wordpress-plugins/
 Description: Imports games from TheGameDatabase API as "game" post types.
-Version:  1.4
+Version:  1.5
 Author:  Marc Tönsing
 Author URI: https://marc.tv
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
